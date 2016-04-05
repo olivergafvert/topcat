@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import topcat.matrix.BMatrix;
 import topcat.matrix.BVector;
+import topcat.matrix.exception.AffineVectorSpaceDimensionException;
 import topcat.matrix.exception.NoSolutionException;
 import topcat.matrix.rankminimization.AffineVectorSpaceIterator;
 import topcat.matrix.rankminimization.RankTreeSearch;
@@ -44,6 +45,17 @@ import java.util.List;
  */
 public class StandardNoise extends Noise{
     private static final Logger log = LoggerFactory.getLogger(StandardNoise.class);
+    private long threshold; //The maximal size of the search space
+    private int cache_size;
+
+    public StandardNoise(){
+        this(Long.MAX_VALUE, 10);
+    }
+
+    public StandardNoise(long threshold, int cache_size){
+        this.threshold = threshold;
+        this.cache_size = cache_size;
+    }
 
     /**
      * Computes the basic barcode in the diagonal direction using standard noise in the direction of a cone.
@@ -59,14 +71,15 @@ public class StandardNoise extends Noise{
 
         basicBarcode.add(new Pair<>(0.0, f_generators.size()));
 
-        for(IntTuple epsilon : indices.subList(1, indices.size())){
+        for(int i=1;i<indices.size();i++){
+            IntTuple epsilon = indices.get(i);
             log.debug("Filtrationindices: "+epsilon);
             try {
                 Integer bar = computeBasicBarcode(F, f_generators, epsilon)._1();
                 double max = -Double.MAX_VALUE;
-                for(int i=0;i<epsilon.length();i++){
-                    if(filtrationValues.get(i).get(epsilon.get(i)) > max){
-                        max = filtrationValues.get(i).get(epsilon.get(i));
+                for(int j=0;j<epsilon.length();j++){
+                    if(filtrationValues.get(j).get(epsilon.get(j)) > max){
+                        max = filtrationValues.get(j).get(epsilon.get(j));
                     }
                 }
                 basicBarcode.add(new Pair<>(max, bar));
@@ -151,11 +164,18 @@ public class StandardNoise extends Noise{
 
             //System.out.println("Solution: v -\n"+vn+"\n ker -\n"+K);
 
-            solution_sets.add(AffineVectorSpaceIterator.create(Kn.transpose(), vn, 10));
+            AffineVectorSpaceIterator iterator;
+            try{
+                iterator = AffineVectorSpaceIterator.create(Kn.transpose(), vn, cache_size);
+                solution_sets.add(iterator);
+            }catch (AffineVectorSpaceDimensionException afe){
+                log.error("Failed to create affine vector space iterator.", afe);
+                return new Pair<>(-1, null);
+            }
         }
 
         RankTreeSearch rankTreeSearch = new RankTreeSearch(solution_sets);
-        Pair<Integer, BMatrix> bar = rankTreeSearch.findMinRank();
+        Pair<Integer, BMatrix> bar = rankTreeSearch.findMinRank(threshold);
         //System.out.println("Bar = "+bar._1());
         return bar;
     }

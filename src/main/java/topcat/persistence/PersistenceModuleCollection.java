@@ -60,7 +60,7 @@ public class PersistenceModuleCollection extends ArrayList<PersistenceModule>{
         try {
             IntTuple size = new IntTuple(filtrationValues.size());
             for(int i=0;i<filtrationValues.size();i++){
-                size.set(i, filtrationValues.get(i).size());
+                size.set(i, filtrationValues.get(i).size()-1);
             }
             List<Functor> functors = HomologyUtil.computeHomologyFunctors(simplexStorageStructure, size, maxDimension);
             for(int i=0; i<functors.size();i++) {

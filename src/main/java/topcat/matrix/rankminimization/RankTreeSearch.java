@@ -20,6 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package topcat.matrix.rankminimization;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import topcat.matrix.BMatrix;
 import topcat.matrix.BVector;
 import topcat.util.Pair;
@@ -30,6 +32,8 @@ import java.util.*;
  * Implements depth first search for rank minimization.
  */
 public class RankTreeSearch {
+    private Logger log = LoggerFactory.getLogger(RankTreeSearch.class);
+
     List<AffineVectorSpaceIterator> vectorSpaces;
 
     public RankTreeSearch(List<AffineVectorSpaceIterator> vectorSpaces){
@@ -37,12 +41,30 @@ public class RankTreeSearch {
     }
 
     public Pair<Integer, BMatrix> findMinRank(){
+        return findMinRank(Long.MAX_VALUE);
+    }
+
+    public Pair<Integer, BMatrix> findMinRank(long threshold){
         if(vectorSpaces.size() == 0){
             return new Pair<>(0, new BMatrix(0, 0));
         }
         Collections.sort(vectorSpaces, (o1, o2) -> o1.getDimension() - o2.getDimension());
-        vectorSpaces.forEach(f -> System.out.print(f.getDimension()+", "));
-        System.out.print("\n");
+
+        StringBuilder sb = new StringBuilder();
+        long search_space = 1;
+        for(AffineVectorSpaceIterator f : vectorSpaces){
+            sb.append(f.getDimension()+", ");
+            long nr_elements = (long)Math.pow(2, f.getDimension());
+            if(search_space*nr_elements >= search_space){
+                search_space *= nr_elements;
+            }
+        }
+        log.info("Seach space contains "+search_space+" number of elements.");
+        log.info("Dimensions: "+sb.toString());
+
+        if(search_space > threshold){
+            return new Pair<>(-1, null);
+        }
 
         int k=0;
         BMatrix A = new BMatrix(vectorSpaces.size(), vectorSpaces.get(0).getAmbientDimension());
@@ -65,7 +87,9 @@ public class RankTreeSearch {
                 Amin = new BMatrix(A);
             }
 
-            if(minRank == 1) break;
+            if(minRank == 1){
+                break;
+            }
 
             //System.out.println("Rank(A) = " + r + " (minrank = " + minRank + ")");
 

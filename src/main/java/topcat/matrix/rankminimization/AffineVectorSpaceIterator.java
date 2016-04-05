@@ -22,6 +22,7 @@ package topcat.matrix.rankminimization;
 
 import topcat.matrix.BMatrix;
 import topcat.matrix.BVector;
+import topcat.matrix.exception.AffineVectorSpaceDimensionException;
 import topcat.matrix.exception.NoSolutionException;
 import topcat.matrix.exception.WrongDimensionException;
 
@@ -46,9 +47,10 @@ public class AffineVectorSpaceIterator extends VectorSpaceIterator {
      * @return
      * @throws WrongDimensionException
      */
-    public static AffineVectorSpaceIterator create(BMatrix basis, BVector v, int cache_size) throws WrongDimensionException {
-        if(basis.rows > 64)
-            throw new WrongDimensionException("Does not support vector spaces of dim > 64");
+    public static AffineVectorSpaceIterator create(BMatrix basis, BVector v, int cache_size) throws AffineVectorSpaceDimensionException {
+        if(basis.rows > 64) {
+            throw new AffineVectorSpaceDimensionException("Does not support vector spaces of dim > 64");
+        }
         return new AffineVectorSpaceIterator(basis, v, cache_size);
     }
 

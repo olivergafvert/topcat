@@ -122,10 +122,10 @@ public class HomologyUtil {
             Functor C = new Functor(size);
             //Compute the maps
             for(IntTuple v : GridIterator.getSequence(size)){
-                List<Simplex> currentSimplices = simplexStorageStructure.getSimplicesLEQThan(k, v.getElements());
+                List<Simplex> currentSimplices = simplexStorageStructure.getSimplicesLEQThan(k, v);
                 for(int i=0;i<v.length();i++){
                     C.setMap(v, computeInclusionMap(currentSimplices,
-                            simplexStorageStructure.getSimplicesLEQThan(k, v.plus(IntTuple.getStandardBasisElement(v.length(), i)).getElements())), i);
+                            simplexStorageStructure.getSimplicesLEQThan(k, v.plus(IntTuple.getStandardBasisElement(v.length(), i)))), i);
                 }
             }
             return new Pair<>(k, C);
@@ -239,7 +239,7 @@ public class HomologyUtil {
             //For each index in the grid we compute the homology up to dimension 'maxdimension'
             List<List<Simplex>> chain = new ArrayList<>();
             for (int k = 0; k <= maxDimension; k++) {
-                chain.add(simplexStorageStructure.getSimplicesLEQThan(k, v.getElements()));
+                chain.add(simplexStorageStructure.getSimplicesLEQThan(k, v));
             }
             List<BMatrix> homologyBasis = computeHomologyBasis(chain);
             for(int k=0;k<homologyBasis.size();k++){
