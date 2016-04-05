@@ -75,19 +75,27 @@ public class Grid<T> {
 
         T get(IntTuple v){
             if(v.length()-level > 2){
-                if(!subgrid.containsKey(v.get(level))) return null;
+                if(!subgrid.containsKey(v.get(level))){
+                    return null;
+                }
                 return subgrid.get(v.get(level)).get(v);
             }
-            if(!subgrid.containsKey(v.get(level))) return null;
+            if(!subgrid.containsKey(v.get(level))){
+                return null;
+            }
             return ((BaseGrid)subgrid.get(v.get(level))).get(v.get(level+1));
         }
 
         void set(IntTuple v, T t){
             if(v.length()-level > 2) {
-                if (!subgrid.containsKey(v.get(level))) subgrid.put(v.get(level), new SubGrid(level+1));
+                if (!subgrid.containsKey(v.get(level))){
+                    subgrid.put(v.get(level), new SubGrid(level+1));
+                }
                 subgrid.get(v.get(level)).set(v, t);
             }else{
-                if (!subgrid.containsKey(v.get(level))) subgrid.put(v.get(level), new BaseGrid(level+1));
+                if (!subgrid.containsKey(v.get(level))){
+                    subgrid.put(v.get(level), new BaseGrid(level+1));
+                }
                 BaseGrid baseGrid = (BaseGrid) subgrid.get(v.get(level));
                 baseGrid.set(v.get(level+1), t);
             }
@@ -102,6 +110,9 @@ public class Grid<T> {
         }
 
         T get(int i){
+            if(!elements.containsKey(i)){
+                return null;
+            }
             return elements.get(i);
         }
 
