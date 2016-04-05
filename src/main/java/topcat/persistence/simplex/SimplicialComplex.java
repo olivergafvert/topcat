@@ -30,6 +30,7 @@ import topcat.persistence.PersistenceModuleCollection;
 import topcat.persistence.noise.Noise;
 import topcat.persistence.noise.StandardNoise;
 import topcat.util.DistanceMatrix;
+import topcat.util.IntTuple;
 import topcat.util.Pair;
 import topcat.util.Point;
 
@@ -68,10 +69,16 @@ public class SimplicialComplex {
         }
 
         //Compute all edges that will appear in the multifiltration and add them as 1-simplices
-        IntStream.range(0, distanceMatrix.rows).parallel().mapToObj(i -> {
+        int[] nonzeros_rows = distanceMatrix.getNonZeroRows();
+        IntStream.range(0, nonzeros_rows.length).mapToObj(r -> {
+            int i = nonzeros_rows[r];
             TIntHashSet upperNeighbors = new TIntHashSet();
             List<Simplex> local_simplices = new ArrayList<>();
-            for(int j=i+1; j<distanceMatrix.rows;j++){
+            int[] nonzero_cols = distanceMatrix.getNonZeroRowEntries(i);
+            for(int j : nonzero_cols){
+                if(j <= i){
+                    continue;
+                }
                 //Check if edge will appear in the multifiltration
                 boolean isLEQ = true;
                 for(int k=0;k<filtrationValue.size();k++){
@@ -167,7 +174,11 @@ public class SimplicialComplex {
         for(int i=0;i<filtrationValues.size();i++){
             maxFiltrationValues.add(filtrationValues.get(i).get(filtrationValues.get(i).size()-1));
         }
-        SimplexStorageStructure storageStructure = new SimplexStorageStructure(filtrationValues);
+        IntTuple gridSize = new IntTuple(filtrationValues.size());
+        for(int i=0;i<filtrationValues.size();i++){
+            gridSize.set(i, filtrationValues.get(i).size()-1);
+        }
+        SimplexStorageStructure storageStructure = new SimplexStorageStructure(filtrationValues, gridSize);
         log.debug("Starting to compute simplicial complex...");
         //Compute the Vietoris-Rips complex for the maximal filtration value
         List<Simplex> simplices = computeVietorisRipsComplex(distanceMatrices, maxFiltrationValues, maxDimension);
@@ -177,7 +188,9 @@ public class SimplicialComplex {
         for(int i=0;i<simplices.size();i++){
             List<Integer> filtrationIndexes = calcFiltrationIndexes(simplices.get(i), distanceMatrices, filtrationValues);
             if (filtrationIndexes != null) {
-                storageStructure.addElement(simplices.get(i), filtrationIndexes);
+                storageStructure.addElement(simplices.get(i), new IntTuple(filtrationIndexes));
+            }else{
+                log.error("Failed to add simplex "+simplices.get(i)+" to simplex storage structure");
             }
         }
         log.debug("Finished computing filtrationIndices.");
