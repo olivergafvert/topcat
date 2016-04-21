@@ -18,59 +18,68 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package topcat.util;
+package topcat.matrix.distancematrix;
+
+import gnu.trove.map.hash.TIntDoubleHashMap;
+import gnu.trove.map.hash.TIntObjectHashMap;
 
 import java.util.List;
-import java.util.stream.IntStream;
 
 /**
  * Created by oliver on 2016-04-05.
  */
-public class ArrayDistanceMatrix extends DistanceMatrix {
-    private double[][] distanceMatrix;
+public class SparseDistanceMatrix extends DistanceMatrix {
+    private TIntObjectHashMap<TIntDoubleHashMap> valueMap = new TIntObjectHashMap<>();
 
-    public ArrayDistanceMatrix(double[][] distanceMatrix){
-        super(distanceMatrix.length, distanceMatrix.length > 0 ? distanceMatrix[0].length : 0);
-        this.distanceMatrix = distanceMatrix;
-    }
-
-    public ArrayDistanceMatrix(int rows, int cols){
+    public SparseDistanceMatrix(int rows, int cols) {
         super(rows, cols);
-        this.distanceMatrix = new double[rows][];
-        for(int i=0;i<rows;i++){
-            this.distanceMatrix[i] = new double[cols];
-        }
     }
 
     @Override
     public double get(int i, int j){
-        return distanceMatrix[i][j];
+        if(valueMap.containsKey(i) && valueMap.get(i).contains(j)){
+            return valueMap.get(i).get(j);
+        }else{
+            return Double.MAX_VALUE;
+        }
     }
 
     @Override
     public void set(int i, int j, double val){
-        distanceMatrix[i][j] = val;
+        if(!valueMap.containsKey(i)){
+            valueMap.put(i, new TIntDoubleHashMap());
+        }
+        valueMap.get(i).put(j, val);
     }
 
     @Override
     public void setRow(int i, List<Double> list){
         for(int j=0;j<list.size();j++){
-            distanceMatrix[i][j] = list.get(j);
+            set(i, j, list.get(j));
         }
     }
 
     @Override
     public double[] getRow(int i){
-        return distanceMatrix[i];
+        double[] row = new double[cols];
+        for(int j=0;j<cols;j++){
+            row[j] = get(i, j);
+        }
+        return row;
     }
 
     @Override
     public int[] getNonZeroRows() {
-        return IntStream.range(0, rows).toArray();
+        return valueMap.keys();
     }
 
     @Override
     public int[] getNonZeroRowEntries(int i) {
-        return IntStream.range(0, cols).toArray();
+        if(valueMap.containsKey(i)){
+            return valueMap.get(i).keys();
+        }
+        return new int[0];
     }
+
+
 }

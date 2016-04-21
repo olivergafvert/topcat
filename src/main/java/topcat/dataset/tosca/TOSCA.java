@@ -21,11 +21,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package topcat.dataset.tosca;
 
 import topcat.persistence.PersistenceModuleCollection;
-import topcat.persistence.noise.DomainNoise;
 import topcat.persistence.noise.Noise;
 import topcat.persistence.noise.StandardNoise;
-import topcat.util.DistanceMatrix;
-import topcat.util.Pair;
+import topcat.matrix.distancematrix.DistanceMatrix;
 import topcat.util.Point;
 
 import java.io.BufferedReader;
@@ -59,7 +57,7 @@ public class TOSCA {
     public static void main(String[] args){
         try {
             System.out.println("Reading points...");
-            List<Point> points = Point.samplePoints(readPointsFromFile("local/TOSCA/cat0.vert"), 50);
+            List<Point> points = Point.samplePoints(readPointsFromFile("local/TOSCA/cat0.vert"), 200);
             System.out.println("Finished reading points. Computing distance matrix...");
             DistanceMatrix distanceMatrix = DistanceMatrix.computeDistanceMatrix(points, Point::euclideanDistance);
             System.out.println("Finished computing distance matrix. Computing density matrix...");
@@ -76,7 +74,7 @@ public class TOSCA {
             distanceMatrices.add(densityMatrix);
             PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(distanceMatrices,
                     filtrationValues, 2);
-            Noise noise = new StandardNoise();
+            Noise noise = new StandardNoise(10000000, 10);
             noise.computeBasicBarcode(persistenceModules.get(1).getFunctor(), persistenceModules.get(1).getFiltrationValues());
         }catch (IOException ioe){
             ioe.printStackTrace();

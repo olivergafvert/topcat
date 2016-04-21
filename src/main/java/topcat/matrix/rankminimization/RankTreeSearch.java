@@ -57,6 +57,8 @@ public class RankTreeSearch {
             long nr_elements = (long)Math.pow(2, f.getDimension());
             if(search_space*nr_elements >= search_space){
                 search_space *= nr_elements;
+            }else if(search_space*nr_elements < search_space){ //Overflow
+                search_space = Long.MAX_VALUE;
             }
         }
         log.info("Seach space contains "+search_space+" number of elements.");

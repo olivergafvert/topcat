@@ -22,15 +22,14 @@ package topcat.dataset.util;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import topcat.util.DistanceMatrix;
-import topcat.util.SparseDistanceMatrix;
+import topcat.matrix.distancematrix.DistanceMatrix;
+import topcat.matrix.distancematrix.SparseDistanceMatrix;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**

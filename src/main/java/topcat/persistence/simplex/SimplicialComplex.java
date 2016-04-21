@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 import topcat.persistence.PersistenceModuleCollection;
 import topcat.persistence.noise.Noise;
 import topcat.persistence.noise.StandardNoise;
-import topcat.util.DistanceMatrix;
+import topcat.matrix.distancematrix.DistanceMatrix;
 import topcat.util.IntTuple;
 import topcat.util.Pair;
 import topcat.util.Point;

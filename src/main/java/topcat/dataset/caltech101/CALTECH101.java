@@ -26,8 +26,7 @@ import topcat.dataset.util.Image;
 import topcat.persistence.PersistenceModuleCollection;
 import topcat.persistence.noise.Noise;
 import topcat.persistence.noise.StandardNoise;
-import topcat.util.DistanceMatrix;
-import topcat.util.Pair;
+import topcat.matrix.distancematrix.DistanceMatrix;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -59,8 +58,8 @@ public class CALTECH101 {
         //filtrationValues.add(filtrationValues3);
 
         PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(distanceMatrices,
-                filtrationValues, 1);
-        Noise noise = new StandardNoise();
+                filtrationValues, 2);
+        Noise noise = new StandardNoise(10000000, 10);
         noise.computeBasicBarcode(persistenceModules.get(1).getFunctor(), persistenceModules.get(1).getFiltrationValues());
     }
 }

@@ -28,7 +28,7 @@ import topcat.persistence.functor.exception.MalformedFunctorException;
 import topcat.persistence.homology.HomologyUtil;
 import topcat.persistence.simplex.SimplexStorageStructure;
 import topcat.persistence.simplex.SimplicialComplex;
-import topcat.util.DistanceMatrix;
+import topcat.matrix.distancematrix.DistanceMatrix;
 import topcat.util.IntTuple;
 
 import java.util.ArrayList;

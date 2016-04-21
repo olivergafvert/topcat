@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package topcat.util;
 
 import gnu.trove.set.hash.TIntHashSet;
+import topcat.matrix.distancematrix.DistanceMatrix;
 import topcat.persistence.PersistenceModuleCollection;
 import topcat.persistence.noise.Noise;
 import topcat.persistence.noise.StandardNoise;
@@ -104,7 +105,7 @@ public class Point{
     }
 
     public static void main(String[] args){
-        List<Point> points = Point.getRandomSpherePoints(30, 2);
+        List<Point> points = Point.getRandomSpherePoints(20, 2);
 
         //Add distancematrices
         DistanceMatrix distanceMatrix = DistanceMatrix.computeDistanceMatrix(points, Point::euclideanDistance);
@@ -116,8 +117,8 @@ public class Point{
         //Add filtrationvalues
         List<List<Double>> filtrationValues = new ArrayList<>();
         List<Double> radiusFiltrationValues = new ArrayList<>();
-        for(int i=0;i<20;i++){
-            radiusFiltrationValues.add(i*0.1);
+        for(int i=0;i<=10;i++){
+            radiusFiltrationValues.add(i*0.2);
         }
         filtrationValues.add(radiusFiltrationValues);
         filtrationValues.add(Arrays.asList(new Double[]{0.0, 5.0, 10.0, 15.0}));

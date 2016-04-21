@@ -18,68 +18,59 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package topcat.util;
-
-import gnu.trove.map.hash.TIntDoubleHashMap;
-import gnu.trove.map.hash.TIntObjectHashMap;
+package topcat.matrix.distancematrix;
 
 import java.util.List;
+import java.util.stream.IntStream;
 
 /**
  * Created by oliver on 2016-04-05.
  */
-public class SparseDistanceMatrix extends DistanceMatrix {
-    private TIntObjectHashMap<TIntDoubleHashMap> valueMap = new TIntObjectHashMap<>();
+public class ArrayDistanceMatrix extends DistanceMatrix {
+    private double[][] distanceMatrix;
 
-    public SparseDistanceMatrix(int rows, int cols) {
+    public ArrayDistanceMatrix(double[][] distanceMatrix){
+        super(distanceMatrix.length, distanceMatrix.length > 0 ? distanceMatrix[0].length : 0);
+        this.distanceMatrix = distanceMatrix;
+    }
+
+    public ArrayDistanceMatrix(int rows, int cols){
         super(rows, cols);
+        this.distanceMatrix = new double[rows][];
+        for(int i=0;i<rows;i++){
+            this.distanceMatrix[i] = new double[cols];
+        }
     }
 
     @Override
     public double get(int i, int j){
-        if(valueMap.containsKey(i) && valueMap.get(i).contains(j)){
-            return valueMap.get(i).get(j);
-        }else{
-            return Double.MAX_VALUE;
-        }
+        return distanceMatrix[i][j];
     }
 
     @Override
     public void set(int i, int j, double val){
-        if(!valueMap.containsKey(i)){
-            valueMap.put(i, new TIntDoubleHashMap());
-        }
-        valueMap.get(i).put(j, val);
+        distanceMatrix[i][j] = val;
     }
 
     @Override
     public void setRow(int i, List<Double> list){
         for(int j=0;j<list.size();j++){
-            set(i, j, list.get(j));
+            distanceMatrix[i][j] = list.get(j);
         }
     }
 
     @Override
     public double[] getRow(int i){
-        double[] row = new double[cols];
-        for(int j=0;j<cols;j++){
-            row[j] = get(i, j);
-        }
-        return row;
+        return distanceMatrix[i];
     }
 
     @Override
     public int[] getNonZeroRows() {
-        return valueMap.keys();
+        return IntStream.range(0, rows).toArray();
     }
 
     @Override
     public int[] getNonZeroRowEntries(int i) {
-        if(valueMap.containsKey(i)){
-            return valueMap.get(i).keys();
-        }
-        return new int[0];
+        return IntStream.range(0, cols).toArray();
     }
-
-
 }
