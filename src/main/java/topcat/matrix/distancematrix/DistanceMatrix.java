@@ -18,7 +18,12 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package topcat.util;
+package topcat.matrix.distancematrix;
+
+import gnu.trove.map.hash.TIntObjectHashMap;
+import gnu.trove.set.hash.TIntHashSet;
+import topcat.util.Pair;
+import topcat.util.Point;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,37 +32,60 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class DistanceMatrix {
-
-    private double[][] distanceMatrix;
+public abstract class DistanceMatrix {
     public final int cols;
     public final int rows;
 
     public DistanceMatrix(int rows, int cols){
         this.rows = rows;
         this.cols = cols;
-        this.distanceMatrix = new double[rows][];
-        for(int i=0;i<rows;i++){
-            this.distanceMatrix[i] = new double[cols];
-        }
     }
 
-    public double get(int i, int j){
-        return distanceMatrix[i][j];
-    }
+    public abstract double get(int i, int j);
 
-    public void set(int i, int j, double val){
-        distanceMatrix[i][j] = val;
-    }
+    public abstract void set(int i, int j, double val);
 
-    public void setRow(int i, List<Double> list){
-        for(int j=0;j<list.size();j++){
-            distanceMatrix[i][j] = list.get(j);
-        }
-    }
+    public abstract void setRow(int i, List<Double> list);
 
-    public double[] getRow(int i){
-        return distanceMatrix[i];
+    public abstract double[] getRow(int i);
+
+    /**
+     * Returns the indices of the rows which have set values.
+     * @return
+     */
+    public abstract int[] getNonZeroRows();
+
+    /**
+     * Returns the indices of row 'i' which have set values.
+     * @param i
+     * @return
+     */
+    public abstract int[] getNonZeroRowEntries(int i);
+
+    /**
+     * Returns a collection of hashsets where the ith hashset contains the vertices
+     * with ordering larger than i such that the value of (i, j) is less than or equal
+     * to 'val'.
+     * @param val
+     * @return
+     */
+    public TIntObjectHashMap<TIntHashSet> getEdgesLEQThan(double val){
+        TIntObjectHashMap<TIntHashSet> edges = new TIntObjectHashMap<>();
+        int[] nonzero_rows = getNonZeroRows();
+        IntStream.range(0, nonzero_rows.length).parallel().mapToObj(i -> {
+            int row = nonzero_rows[i];
+            TIntHashSet vertices = new TIntHashSet();
+            int[] nonzero_cols = getNonZeroRowEntries(row);
+            for(int j : nonzero_cols){
+                if(j > row && get(row, j) <= val){
+                    vertices.add(j);
+                }
+            }
+            return new Pair<>(row, vertices);
+        }).collect(Collectors.toList())
+                .stream()
+                .forEach(pair -> edges.put(pair._1(), pair._2()));
+        return edges;
     }
 
     public static DistanceMatrix computeDistanceMatrix(List<Point> points, BiFunction<Point, Point, Double> function){
@@ -68,7 +96,7 @@ public class DistanceMatrix {
                                         p2 -> function.apply(p1, p2)
                                 ).collect(Collectors.toList())
                 ).collect(Collectors.toList());
-        DistanceMatrix d = new DistanceMatrix(points.size(), points.size());
+        DistanceMatrix d = new ArrayDistanceMatrix(points.size(), points.size());
         IntStream.range(0, distanceMatrix.size()).forEach(i -> d.setRow(i, distanceMatrix.get(i)));
         return d;
     }
@@ -94,13 +122,13 @@ public class DistanceMatrix {
             Collections.sort(density, (o1, o2) -> o1._2()-o2._2());
             return density.stream().map(e -> e._1()).collect(Collectors.toList());
         }).collect(Collectors.toList());
-        DistanceMatrix d = new DistanceMatrix(distanceMatrix.rows, distanceMatrix.cols);
+        DistanceMatrix d = new ArrayDistanceMatrix(distanceMatrix.rows, distanceMatrix.cols);
         IntStream.range(0, densityMatrix.size()).forEach(i -> d.setRow(i, densityMatrix.get(i)));
         return d;
     }
 
     public static DistanceMatrix computeInverseDensityMatrix(DistanceMatrix distanceMatrix){
-        DistanceMatrix inverseDensity = new DistanceMatrix(distanceMatrix.rows, distanceMatrix.cols);
+        DistanceMatrix inverseDensity = new ArrayDistanceMatrix(distanceMatrix.rows, distanceMatrix.cols);
         DistanceMatrix densityMatrix = computeDensityMatrix(distanceMatrix);
         IntStream.range(0, densityMatrix.rows).forEach(r -> {
             double[] row = densityMatrix.getRow(r);
@@ -132,7 +160,7 @@ public class DistanceMatrix {
             Collections.sort(knn, (o1, o2) -> o1._2()-o2._2());
             return knn.stream().map(e -> e._1()).collect(Collectors.toList());
         }).collect(Collectors.toList());
-        DistanceMatrix d = new DistanceMatrix(distanceMatrix.rows, distanceMatrix.cols);
+        DistanceMatrix d = new ArrayDistanceMatrix(distanceMatrix.rows, distanceMatrix.cols);
         IntStream.range(0, densityMatrix.size()).forEach(i -> d.setRow(i, densityMatrix.get(i)));
         return d;
     }

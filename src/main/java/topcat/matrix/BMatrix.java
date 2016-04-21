@@ -448,8 +448,9 @@ public class BMatrix {
     }
 
     public static BMatrix concat(BMatrix A, BMatrix B) throws WrongDimensionException{
-        if(A.rows != B.rows)
-            throw new WrongDimensionException("Dimensions do not agree: Rows must be equal A.rows = "+A.rows+" B.rows = "+B.rows);
+        if(A.rows != B.rows) {
+            throw new WrongDimensionException("Dimensions do not agree: Rows must be equal A.rows = " + A.rows + " B.rows = " + B.rows);
+        }
         BMatrix C = new BMatrix(A.rows, A.cols+B.cols);
         for(int i=0;i<C.rows;i++){
             C.setRow(i, BVector.concat(A.getRow(i), B.getRow(i)));

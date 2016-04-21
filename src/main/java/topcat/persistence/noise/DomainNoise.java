@@ -44,11 +44,11 @@ public class DomainNoise extends Noise{
 
         for(IntTuple epsilon : indices){
             Functor H = new Functor(F.getSize().minus(epsilon));
-            GridIterator.getSequence(H.getSize()).parallelStream().forEach(v ->{
+            for(IntTuple v : GridIterator.getSequence(H.getSize())){
                 for(int i=0;i<v.length();i++){
                     H.setMap(v, F.getMap(v.plus(epsilon), i), i);
                 }
-            });
+            }
             List<Functor.Generator> generators = H.getGenerators();
             Integer bar = generators.size();
 

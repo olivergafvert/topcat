@@ -28,7 +28,7 @@ import topcat.persistence.functor.exception.MalformedFunctorException;
 import topcat.persistence.homology.HomologyUtil;
 import topcat.persistence.simplex.SimplexStorageStructure;
 import topcat.persistence.simplex.SimplicialComplex;
-import topcat.util.DistanceMatrix;
+import topcat.matrix.distancematrix.DistanceMatrix;
 import topcat.util.IntTuple;
 
 import java.util.ArrayList;
@@ -60,7 +60,7 @@ public class PersistenceModuleCollection extends ArrayList<PersistenceModule>{
         try {
             IntTuple size = new IntTuple(filtrationValues.size());
             for(int i=0;i<filtrationValues.size();i++){
-                size.set(i, filtrationValues.get(i).size());
+                size.set(i, filtrationValues.get(i).size()-1);
             }
             List<Functor> functors = HomologyUtil.computeHomologyFunctors(simplexStorageStructure, size, maxDimension);
             for(int i=0; i<functors.size();i++) {

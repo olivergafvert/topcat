@@ -200,8 +200,12 @@ public class Functor {
      * @return
      */
     public BMatrix getMap(IntTuple from, IntTuple to){
-        if(from.equals(to)) return BMatrix.identity(getDimension(from));
-        if(!from.leq(to)) return null;
+        if(from.equals(to)){
+            return BMatrix.identity(getDimension(from));
+        }
+        if(!from.leq(to)){
+            return null;
+        }
         BMatrix A = null;
         try {
             for (Pair<IntTuple, Integer> p : GridIterator.getPairSequence(from, to)) {

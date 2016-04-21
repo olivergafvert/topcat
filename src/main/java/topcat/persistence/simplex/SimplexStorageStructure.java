@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package topcat.persistence.simplex;
 
 import gnu.trove.map.hash.TIntObjectHashMap;
+import topcat.util.Grid;
 import topcat.util.GridIterator;
 import topcat.util.IntTuple;
 
@@ -38,52 +39,47 @@ import java.util.List;
  * storing a multifiltered simplicial complex.
  */
 public class SimplexStorageStructure {
-    TIntObjectHashMap<Container> simplexContainer;
+    TIntObjectHashMap<Grid<List<Simplex>>> simplexContainer;
     List<List<Double>> filtrationValues;
+    IntTuple gridSize;
 
-    public SimplexStorageStructure(List<List<Double>> filtrationValues){
+    public SimplexStorageStructure(List<List<Double>> filtrationValues, IntTuple gridSize){
         simplexContainer = new TIntObjectHashMap<>();
         this.filtrationValues = filtrationValues;
+        this.gridSize = gridSize;
     }
 
     public List<List<Double>> getFiltrationValues() { return filtrationValues; }
 
-    public void addElement(Simplex simplex, List<Integer> filtrationIndex){
+    public void addElement(Simplex simplex, IntTuple filtrationIndex){
         if(!simplexContainer.containsKey(simplex.getDimension())){
-            if(this.filtrationValues.size() > 1)
-                simplexContainer.put(simplex.getDimension(), new Container());
-            else
-                simplexContainer.put(simplex.getDimension(), new SimplexContainer());
+            simplexContainer.put(simplex.getDimension(), Grid.create(gridSize));
         }
-        simplexContainer.get(simplex.getDimension()).set(filtrationIndex, simplex);
+        List<Simplex> simplices = simplexContainer.get(simplex.getDimension()).get(filtrationIndex);
+        if(simplices == null){
+            simplices = new ArrayList<>();
+            simplexContainer.get(simplex.getDimension()).set(filtrationIndex, simplices);
+        }
+        simplices.add(simplex);
     }
 
-    public List<Simplex> getSimplicesAt(int dim, List<Integer> filtrationIndex){
-        if(!simplexContainer.containsKey(dim)) return new ArrayList<>();
+    public List<Simplex> getSimplicesAt(int dim, IntTuple filtrationIndex){
+        if(!simplexContainer.containsKey(dim)){
+            return null;
+        }
         return simplexContainer.get(dim).get(filtrationIndex);
     }
 
-    private void getSimplicesLEQThanHelper(int dim, List<Integer> filtrationIndex, int pos, List<Integer> current, List<Simplex> simplices){
-        if(pos == filtrationIndex.size()){
-            List<Simplex> simplexList = getSimplicesAt(dim, current);
-            if(simplexList != null)
-                simplices.addAll(simplexList);
-        }else {
-            for (int i = 0; i <= filtrationIndex.get(pos); i++) {
-                current.set(pos, i);
-                getSimplicesLEQThanHelper(dim, filtrationIndex, pos + 1, current, simplices);
+    public List<Simplex> getSimplicesLEQThan(int dim, IntTuple filtrationIndex){
+        List<Simplex> simplices = new ArrayList<>();
+        for(IntTuple v : GridIterator.getSequence(filtrationIndex)){
+            List<Simplex> local_simplices = getSimplicesAt(dim, v);
+            if(local_simplices != null) {
+                simplices.addAll(local_simplices);
             }
         }
-    }
-
-    public List<Simplex> getSimplicesLEQThan(int dim, List<Integer> filtrationIndex){
-        List<Simplex> simplices = new ArrayList<>();
-        List<Integer> positionVector = new ArrayList<>();
-        for(int i=0;i<filtrationIndex.size();i++) positionVector.add(0);
-        getSimplicesLEQThanHelper(dim, filtrationIndex, 0, positionVector, simplices);
         return simplices;
     }
-
 
     /**
      * Returns the simplex storage structure and filtration values.
@@ -102,7 +98,11 @@ public class SimplexStorageStructure {
                     .forEach(x -> values.add(Double.parseDouble(x)));
             filtrationValues.add(values);
         }
-        SimplexStorageStructure simplexStorageStructure = new SimplexStorageStructure(filtrationValues);
+        IntTuple gridSize = new IntTuple(filtrationValues.size());
+        for(int i=0;i<filtrationValues.size();i++){
+            gridSize.set(i, filtrationValues.get(i).size()-1);
+        }
+        SimplexStorageStructure simplexStorageStructure = new SimplexStorageStructure(filtrationValues, gridSize);
         while((line = reader.readLine()) != null){
 
             //Parse simplex
@@ -124,7 +124,7 @@ public class SimplexStorageStructure {
                     .stream()
                     .forEach(x -> filtrationIndex.add(Integer.parseInt(x)));
 
-            simplexStorageStructure.addElement(new Simplex(vertices), filtrationIndex);
+            simplexStorageStructure.addElement(new Simplex(vertices), new IntTuple(filtrationIndex));
         }
         return simplexStorageStructure;
     }
@@ -138,64 +138,10 @@ public class SimplexStorageStructure {
         StringBuilder sb = new StringBuilder();
         GridIterator.getSequence(size).stream().forEach(v -> {
             sb.append(v).append(":\n");
-            sb.append("Dimension 0: ").append(getSimplicesAt(0, v.toList())).append("\n");
-            sb.append("Dimension 1; ").append(getSimplicesAt(1, v.toList())).append("\n");
-            sb.append("Dimension 2; ").append(getSimplicesAt(2, v.toList())).append("\n");
+            sb.append("Dimension 0: ").append(getSimplicesAt(0, v)).append("\n");
+            sb.append("Dimension 1; ").append(getSimplicesAt(1, v)).append("\n");
+            sb.append("Dimension 2; ").append(getSimplicesAt(2, v)).append("\n");
         });
         return sb.toString();
-    }
-
-    class Container{
-        private TIntObjectHashMap<Container> container = new TIntObjectHashMap<>();
-
-        List<Simplex> get(List<Integer> vals){
-            if(vals.size()>2){
-                if(!container.containsKey(vals.get(0))) return null;
-                return container.get(vals.get(0))
-                        .get(vals.subList(1, vals.size()));
-            }
-            if(!container.containsKey(vals.get(1))) return null;
-            return ((SimplexContainer)container.get(vals.get(1))).get(vals.get(0));
-        }
-
-        void set(List<Integer> vals, Simplex simplex){
-            set(vals, Arrays.asList(new Simplex[]{simplex}));
-        }
-
-        void set(List<Integer> vals, List<Simplex> simplices){
-            if(vals.size() > 2) {
-                if (!container.containsKey(vals.get(0))) container.put(vals.get(0), new Container());
-                container.get(vals.get(0)).set(vals.subList(1, vals.size()), simplices);
-            }else{
-                if (!container.containsKey(vals.get(0))) container.put(vals.get(0), new SimplexContainer());
-                SimplexContainer simplexContainer = (SimplexContainer) container.get(vals.get(0));
-                simplexContainer.set(vals.get(1), simplices);
-            }
-        }
-    }
-
-    class SimplexContainer extends Container{
-        private TIntObjectHashMap<List<Simplex>> simplexContainer = new TIntObjectHashMap<>();
-
-        List<Simplex> get(int val){
-            if(!simplexContainer.containsKey(val)) return null;
-            return simplexContainer.get(val);
-        }
-
-        @Override
-        List<Simplex> get(List<Integer> vals){
-            return get(vals.get(0));
-        }
-
-        void set(int val, List<Simplex> simplices){
-            if(!simplexContainer.containsKey(val)) simplexContainer.put(val, new ArrayList<>());
-            simplexContainer.get(val).addAll(simplices);
-        }
-
-        @Override
-        void set(List<Integer> vals, List<Simplex> simplices){
-            set(vals.get(0), simplices);
-        }
-
     }
 }

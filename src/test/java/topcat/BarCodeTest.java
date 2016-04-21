@@ -26,7 +26,7 @@ import topcat.persistence.PersistenceModuleCollection;
 import topcat.persistence.barcode.BasicBarcode;
 import topcat.persistence.noise.Noise;
 import topcat.persistence.noise.StandardNoise;
-import topcat.util.DistanceMatrix;
+import topcat.matrix.distancematrix.DistanceMatrix;
 import topcat.util.Pair;
 import topcat.util.Point;
 
@@ -40,10 +40,11 @@ public class BarCodeTest {
 
     @Test
     public void circleTest(){
-        List<Point> points = Point.circle2D(1, 10);
+        List<Point> points = Point.circle2D(1, 5);
 
         //Add distancematrices
         DistanceMatrix distanceMatrix = DistanceMatrix.computeDistanceMatrix(points, Point::euclideanDistance);
+
         List<DistanceMatrix> distanceMatrices = new ArrayList<>();
         distanceMatrices.add(distanceMatrix);
 
