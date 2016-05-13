@@ -40,7 +40,7 @@ public class BarCodeTest {
 
     @Test
     public void circleTest(){
-        List<Point> points = Point.circle2D(1, 5);
+        List<Point> points = Point.circle2D(1, 10);
 
         //Add distancematrices
         DistanceMatrix distanceMatrix = DistanceMatrix.computeDistanceMatrix(points, Point::euclideanDistance);
