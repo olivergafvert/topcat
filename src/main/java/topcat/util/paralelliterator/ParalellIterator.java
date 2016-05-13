@@ -1,7 +1,8 @@
-package topcat.util;
+package topcat.util.paralelliterator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import topcat.util.Pair;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,22 +11,21 @@ import java.util.concurrent.*;
 /**
  * Created by oliver on 2016-05-13.
  */
-public abstract class ParalellIterator<T> {
+public abstract class ParalellIterator<S, T> {
     private Logger log = LoggerFactory.getLogger(ParalellIterator.class);
-    private int from, to;
+    protected List<S> indices;
 
-    public ParalellIterator(int from, int to){
-        this.from = from;
-        this.to = to;
+    public ParalellIterator(List<S> indices){
+        this.indices = indices;
     }
 
-    public abstract T method(int index);
+    public abstract T method(S index);
 
-    public List<Pair<Integer, T>> run(){
+    public List<Pair<S, T>> run(){
         ExecutorService exec = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
         List<Future> futures = new ArrayList<>();
         List<Worker> workers = new ArrayList<>();
-        for(int i=from;i<to;i++){
+        for(S i : indices){
             Worker worker = new Worker(i);
             workers.add(worker);
             futures.add(exec.submit(worker));
@@ -49,18 +49,18 @@ public abstract class ParalellIterator<T> {
             log.error("Failed to terminate executor service.", exe);
         }
 
-        List<Pair<Integer, T>> results = new ArrayList<>();
+        List<Pair<S, T>> results = new ArrayList<>();
         for(Worker worker : workers){
-            results.add(new Pair<Integer, T>(worker.i, worker.result));
+            results.add(new Pair<S, T>(worker.i, worker.result));
         }
         return results;
     }
 
 
     private class Worker implements Runnable{
-        int i;
+        S i;
         T result;
-        private Worker(int i){
+        private Worker(S i){
             this.i = i;
         }
 
