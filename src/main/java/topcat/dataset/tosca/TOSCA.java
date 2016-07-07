@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Created by oliver on 2016-03-13.
@@ -45,10 +44,10 @@ public class TOSCA {
         String line;
         List<Point> points = new ArrayList<>();
         while((line = reader.readLine()) != null){
-            List<Double> point = Arrays.asList(line.trim().split(" "))
-                    .stream()
-                    .map(Double::parseDouble)
-                    .collect(Collectors.toList());
+            List<Double> point = new ArrayList<>();
+            for(String a : line.trim().split(" ")){
+                point.add(Double.parseDouble(a));
+            }
             points.add(new Point(point));
         }
         return points;
@@ -59,7 +58,7 @@ public class TOSCA {
             System.out.println("Reading points...");
             List<Point> points = Point.samplePoints(readPointsFromFile("local/TOSCA/cat0.vert"), 200);
             System.out.println("Finished reading points. Computing distance matrix...");
-            DistanceMatrix distanceMatrix = DistanceMatrix.computeDistanceMatrix(points, Point::euclideanDistance);
+            DistanceMatrix distanceMatrix = DistanceMatrix.computeEuclideanDistanceMatrix(points);
             System.out.println("Finished computing distance matrix. Computing density matrix...");
             DistanceMatrix densityMatrix = DistanceMatrix.computeKNNMatrix(distanceMatrix);
             System.out.println("Finished computing density matrix.");
@@ -75,7 +74,7 @@ public class TOSCA {
             PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(distanceMatrices,
                     filtrationValues, 2);
             Noise noise = new StandardNoise(10000000, 10);
-            noise.computeBasicBarcode(persistenceModules.get(1).getFunctor(), persistenceModules.get(1).getFiltrationValues());
+            noise.computeFCF(persistenceModules.get(1).getFunctor(), persistenceModules.get(1).getFiltrationValues());
         }catch (IOException ioe){
             ioe.printStackTrace();
         }

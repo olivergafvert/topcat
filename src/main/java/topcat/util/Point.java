@@ -127,6 +127,6 @@ public class Point{
         PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(distanceMatrices, filtrationValues, maxDimension);
 
         Noise noise = new StandardNoise();
-        noise.computeBasicBarcode(persistenceModules.get(2).getFunctor(), persistenceModules.get(1).getFiltrationValues());
+        noise.computeFCF(persistenceModules.get(2).getFunctor(), persistenceModules.get(1).getFiltrationValues());
     }
 }

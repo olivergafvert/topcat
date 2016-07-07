@@ -29,7 +29,7 @@ import topcat.matrix.exception.AffineVectorSpaceDimensionException;
 import topcat.matrix.exception.NoSolutionException;
 import topcat.matrix.rankminimization.AffineVectorSpaceIterator;
 import topcat.matrix.rankminimization.RankTreeSearch;
-import topcat.persistence.barcode.BasicBarcode;
+import topcat.persistence.fcf.FeatureCountingFunction;
 import topcat.persistence.functor.Functor;
 import topcat.matrix.exception.WrongDimensionException;
 import topcat.util.IntTuple;
@@ -57,42 +57,48 @@ public class StandardNoise extends Noise{
         this.cache_size = cache_size;
     }
 
+    public static FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues, double[] weight){
+        Noise noise = new StandardNoise();
+        //TODO: Turn weight into epsilon.
+        return noise.computeFCF(F, filtrationValues);
+    }
+
     /**
-     * Computes the basic barcode in the diagonal direction using standard noise in the direction of a cone.
+     * Computes the feature counting function in the diagonal direction using standard noise in the direction of a cone.
      * @param F
      * @param filtrationValues
      * @return
      */
-    public BasicBarcode computeBasicBarcode(Functor F, List<List<Double>> filtrationValues){
-        BasicBarcode basicBarcode = new BasicBarcode();
+    public FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues){
+        FeatureCountingFunction featureCountingFunction = new FeatureCountingFunction();
         List<IntTuple> indices = getIndexSequence(filtrationValues);
 
         List<Functor.Generator> f_generators = F.getGenerators();
 
-        basicBarcode.add(new Pair<>(0.0, f_generators.size()));
+        featureCountingFunction.add(new Pair<>(0.0, f_generators.size()));
 
         for(int i=1;i<indices.size();i++){
             IntTuple epsilon = indices.get(i);
             log.debug("Filtrationindices: "+epsilon);
             try {
-                Integer bar = computeBasicBarcode(F, f_generators, epsilon)._1();
+                Integer bar = computeFCF(F, f_generators, epsilon)._1();
                 double max = -Double.MAX_VALUE;
                 for(int j=0;j<epsilon.length();j++){
                     if(filtrationValues.get(j).get(epsilon.get(j)) > max){
                         max = filtrationValues.get(j).get(epsilon.get(j));
                     }
                 }
-                basicBarcode.add(new Pair<>(max, bar));
+                featureCountingFunction.add(new Pair<>(max, bar));
                 log.debug("Bar: " + bar);
             }catch (WrongDimensionException wde){
                 log.error("Failed to compute bar", wde);
             }
         }
-        log.debug(basicBarcode.toString());
-        return basicBarcode;
+        log.debug(featureCountingFunction.toString());
+        return featureCountingFunction;
     }
 
-    private Pair<Integer, BMatrix> computeBasicBarcode(Functor F, List<Functor.Generator> f_generators, IntTuple epsilon)  throws WrongDimensionException{
+    private Pair<Integer, BMatrix> computeFCF(Functor F, List<Functor.Generator> f_generators, IntTuple epsilon)  throws WrongDimensionException{
         //f_generators.forEach(f -> System.out.println(f));
         List<Functor.Generator> g_generators = F.generatorShift(f_generators, epsilon);
 

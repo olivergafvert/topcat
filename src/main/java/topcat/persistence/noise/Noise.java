@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package topcat.persistence.noise;
 
-import topcat.persistence.barcode.BasicBarcode;
+import topcat.persistence.fcf.FeatureCountingFunction;
 import topcat.persistence.functor.Functor;
 import topcat.util.IntTuple;
 import topcat.util.Pair;
@@ -82,5 +82,5 @@ public abstract class Noise {
         return indices;
     }
 
-    public abstract BasicBarcode computeBasicBarcode(Functor F, List<List<Double>> filtrationValues);
+    public abstract FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues);
 }

@@ -31,7 +31,6 @@ import topcat.persistence.noise.Noise;
 import topcat.persistence.noise.StandardNoise;
 import topcat.matrix.distancematrix.DistanceMatrix;
 import topcat.util.IntTuple;
-import topcat.util.Pair;
 import topcat.util.Point;
 
 import java.util.ArrayList;
@@ -233,6 +232,6 @@ public class SimplicialComplex {
         distanceMatrices.add(distanceMatrix);
         PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(distanceMatrices, filtrationValues, 2);
         Noise noise = new StandardNoise();
-        noise.computeBasicBarcode(persistenceModules.get(1).getFunctor(), persistenceModules.get(1).getFiltrationValues());
+        noise.computeFCF(persistenceModules.get(1).getFunctor(), persistenceModules.get(1).getFiltrationValues());
     }
 }

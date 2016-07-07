@@ -22,21 +22,19 @@ package topcat.mains;
 
 import topcat.persistence.PersistenceModule;
 import topcat.persistence.PersistenceModuleCollection;
-import topcat.persistence.barcode.BasicBarcode;
+import topcat.persistence.fcf.FeatureCountingFunction;
 import topcat.persistence.noise.DomainNoise;
 import topcat.persistence.noise.Noise;
 import topcat.persistence.noise.StandardNoise;
 import topcat.persistence.simplex.SimplexStorageStructure;
-import topcat.util.Pair;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
 
-public class ComputeBasicBarcode {
+public class ComputeFCF {
 
     /**
-     * Computes the basic barcode of a given type of noise for a given simplicial complex.
+     * Computes the feature counting function of a given type of noise for a given simplicial complex.
      *
      * Usage: simplex_file maxDimension noise_type [domain or standard]
      *
@@ -70,8 +68,8 @@ public class ComputeBasicBarcode {
 
         for(int i=0;i<persistenceModules.getMaxDimension();i++){
             PersistenceModule persistenceModule = persistenceModules.get(i);
-            BasicBarcode basicBarcode = noise.computeBasicBarcode(persistenceModule.getFunctor(), persistenceModule.getFiltrationValues());
-            System.out.println(i+": "+basicBarcode);
+            FeatureCountingFunction featureCountingFunction = noise.computeFCF(persistenceModule.getFunctor(), persistenceModule.getFiltrationValues());
+            System.out.println(i+": "+ featureCountingFunction);
         }
     }
 
