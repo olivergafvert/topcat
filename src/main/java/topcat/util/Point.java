@@ -108,7 +108,7 @@ public class Point{
         List<Point> points = Point.getRandomSpherePoints(20, 2);
 
         //Add distancematrices
-        DistanceMatrix distanceMatrix = DistanceMatrix.computeDistanceMatrix(points, Point::euclideanDistance);
+        DistanceMatrix distanceMatrix = DistanceMatrix.computeEuclideanDistanceMatrix(points);
         DistanceMatrix densityMatrix = DistanceMatrix.computeKNNMatrix(distanceMatrix);
         List<DistanceMatrix> distanceMatrices = new ArrayList<>();
         distanceMatrices.add(distanceMatrix);

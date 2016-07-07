@@ -43,7 +43,7 @@ public class BarCodeTest {
         List<Point> points = Point.circle2D(1, 10);
 
         //Add distancematrices
-        DistanceMatrix distanceMatrix = DistanceMatrix.computeDistanceMatrix(points, Point::euclideanDistance);
+        DistanceMatrix distanceMatrix = DistanceMatrix.computeEuclideanDistanceMatrix(points);
 
         List<DistanceMatrix> distanceMatrices = new ArrayList<>();
         distanceMatrices.add(distanceMatrix);

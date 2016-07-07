@@ -38,8 +38,6 @@ import topcat.util.IntTuple;
 import topcat.util.Pair;
 
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * Tools for computing the homology of a multifiltration.
@@ -118,7 +116,9 @@ public class HomologyUtil {
      */
     private static List<Functor> computeChainFunctors(SimplexStorageStructure simplexStorageStructure, IntTuple size, int maxDimension) throws MalformedFunctorException {
         log.debug("Starting to compute chain functors...");
-        List<Pair<Integer, Functor>> chainFunctors = IntStream.range(0, maxDimension+1).parallel().mapToObj(k -> {
+        List<Functor> chainFunctors = new ArrayList<>();
+
+        for(int k=0;k<maxDimension+1;k++){
             Functor C = new Functor(size);
             //Compute the maps
             for(IntTuple v : GridIterator.getSequence(size)){
@@ -128,17 +128,15 @@ public class HomologyUtil {
                             simplexStorageStructure.getSimplicesLEQThan(k, v.plus(IntTuple.getStandardBasisElement(v.length(), i)))), i);
                 }
             }
-            return new Pair<>(k, C);
-        }).collect(Collectors.toList());
+            chainFunctors.add(C);
+        }
 
-        Collections.sort(chainFunctors, (p1, p2) -> p1._1()-p2._1());
-
-
-        for(Pair<Integer, Functor> P : chainFunctors){
-            Functor.verify(P._2());
+        for(Functor C : chainFunctors){
+            Functor.verify(C);
         }
         log.debug("Finished to computing chain functors.");
-        return chainFunctors.stream().map(P -> P._2()).collect(Collectors.toList());
+
+        return chainFunctors;
     }
 
     /**
@@ -234,7 +232,7 @@ public class HomologyUtil {
         }
 
         log.debug("Starting to compute basis change in each position...");
-        GridIterator.getSequence(size).parallelStream().forEach(v->{
+        for(IntTuple v : GridIterator.getSequence(size)){
             log.debug("Starting to compute position "+v+"...");
             //For each index in the grid we compute the homology up to dimension 'maxdimension'
             List<List<Simplex>> chain = new ArrayList<>();
@@ -251,7 +249,7 @@ public class HomologyUtil {
                 naturalTransformation_inverse.get(k).setMap(v, M);
             }
             log.debug("Finished computing position "+v+".");
-        });
+        }
         log.debug("Finished computing basis change.");
 
         log.debug("Starting to apply basis change...");

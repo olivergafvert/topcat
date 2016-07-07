@@ -29,6 +29,7 @@ import topcat.persistence.homology.HomologyUtil;
 import topcat.persistence.simplex.SimplexStorageStructure;
 import topcat.persistence.simplex.SimplicialComplex;
 import topcat.matrix.distancematrix.DistanceMatrix;
+import topcat.util.DataSystem;
 import topcat.util.IntTuple;
 
 import java.util.ArrayList;
@@ -46,6 +47,10 @@ public class PersistenceModuleCollection extends ArrayList<PersistenceModule>{
 
     public int getMaxDimension(){
         return get(size()-1).getDimension();
+    }
+
+    public static PersistenceModuleCollection create(DataSystem dataSystem, int maxDimension){
+        return create(dataSystem.getDistanceMatrices(), dataSystem.getFiltrationValues(), maxDimension);
     }
 
     public static PersistenceModuleCollection create(List<DistanceMatrix> distanceMatrices,

@@ -48,7 +48,12 @@ public class RankTreeSearch {
         if(vectorSpaces.size() == 0){
             return new Pair<>(0, new BMatrix(0, 0));
         }
-        Collections.sort(vectorSpaces, (o1, o2) -> o1.getDimension() - o2.getDimension());
+        Collections.sort(vectorSpaces, new Comparator<AffineVectorSpaceIterator>() {
+            @Override
+            public int compare(AffineVectorSpaceIterator o1, AffineVectorSpaceIterator o2) {
+                return o1.getDimension() - o2.getDimension();
+            }
+        });
 
         StringBuilder sb = new StringBuilder();
         long search_space = 1;

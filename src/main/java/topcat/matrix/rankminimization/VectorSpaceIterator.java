@@ -109,4 +109,9 @@ public class VectorSpaceIterator implements Iterator<BVector>{
         prev = v;
         return v;
     }
+
+    @Override
+    public void remove() {
+        //TODO: Implement.
+    }
 }
