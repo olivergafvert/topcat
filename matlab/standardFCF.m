@@ -4,4 +4,7 @@ fcf = topcat.persistence.noise.StandardNoise.computeFCF(...
     persistenceModule.getFunctor(), persistenceModule.getFiltrationValues(), ...
     direction);
 
-%Turn fcf into matlab array
+f = zeros(fcf.size(), 2);
+
+f(:, 1) = fcf.getEpsilons();
+f(:, 2) = fcf.getValues();

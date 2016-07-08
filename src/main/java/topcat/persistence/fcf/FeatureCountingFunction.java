@@ -33,6 +33,31 @@ import java.util.Set;
  */
 public class FeatureCountingFunction extends ArrayList<Pair<Double, Integer>> {
 
+    /**
+     * Returns the critical epsilon values of the feature counting function.
+     * @return
+     */
+    public double[] getEpsilons(){
+        double[] epsilons = new double[size()];
+        for(int i=0;i<size();i++){
+            epsilons[i] = get(i)._1();
+        }
+        return epsilons;
+    }
+
+    /**
+     * Returns the values of the feature counting function at the critical epsilon
+     * values.
+     * @return
+     */
+    public int[] getValues(){
+        int[] values = new int[size()];
+        for(int i=0;i<size();i++){
+            values[i] = get(i)._2();
+        }
+        return values;
+    }
+
     @Override
     public boolean equals(Object o){
         if(o==null || !o.getClass().equals(getClass())){

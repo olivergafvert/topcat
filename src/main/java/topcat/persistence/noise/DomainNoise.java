@@ -35,6 +35,12 @@ import java.util.List;
 public class DomainNoise extends Noise{
     //private static final Logger log = LoggerFactory.getLogger(DomainNoise.class);
 
+    public static FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues, double[] weight){
+        Noise noise = new DomainNoise();
+        //TODO: Turn weight into epsilon.
+        return noise.computeFCF(F, filtrationValues);
+    }
+
     public FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues){
         FeatureCountingFunction featureCountingFunction = new FeatureCountingFunction();
         List<IntTuple> indices = getIndexSequence(filtrationValues);
