@@ -36,10 +36,9 @@ import topcat.util.Grid;
 import topcat.util.GridIterator;
 import topcat.util.IntTuple;
 import topcat.util.Pair;
+import topcat.util.paralelliterator.ParalellIterator;
 
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * Tools for computing the homology of a multifiltration.
@@ -116,29 +115,29 @@ public class HomologyUtil {
      * @throws MalformedFunctorException
      * @throws WrongDimensionException
      */
-    private static List<Functor> computeChainFunctors(SimplexStorageStructure simplexStorageStructure, IntTuple size, int maxDimension) throws MalformedFunctorException {
+    private static List<Functor> computeChainFunctors(final SimplexStorageStructure simplexStorageStructure, IntTuple size, int maxDimension) throws MalformedFunctorException {
         log.debug("Starting to compute chain functors...");
-        List<Pair<Integer, Functor>> chainFunctors = IntStream.range(0, maxDimension+1).parallel().mapToObj(k -> {
-            Functor C = new Functor(size);
+        List<Functor> chainFunctors = new ArrayList<>();
+
+        for(int k=0;k<maxDimension+1;k++){
+            final Functor C = new Functor(size);
             //Compute the maps
-            for(IntTuple v : GridIterator.getSequence(size)){
+            for(IntTuple v : GridIterator.getSequence(size)) {
                 List<Simplex> currentSimplices = simplexStorageStructure.getSimplicesLEQThan(k, v);
                 for(int i=0;i<v.length();i++){
                     C.setMap(v, computeInclusionMap(currentSimplices,
                             simplexStorageStructure.getSimplicesLEQThan(k, v.plus(IntTuple.getStandardBasisElement(v.length(), i)))), i);
                 }
             }
-            return new Pair<>(k, C);
-        }).collect(Collectors.toList());
+            chainFunctors.add(C);
+        }
 
-        Collections.sort(chainFunctors, (p1, p2) -> p1._1()-p2._1());
-
-
-        for(Pair<Integer, Functor> P : chainFunctors){
-            Functor.verify(P._2());
+        for(Functor C : chainFunctors){
+            Functor.verify(C);
         }
         log.debug("Finished to computing chain functors.");
-        return chainFunctors.stream().map(P -> P._2()).collect(Collectors.toList());
+
+        return chainFunctors;
     }
 
     /**
@@ -210,13 +209,13 @@ public class HomologyUtil {
      * @throws WrongDimensionException
      * @throws NoSolutionException
      */
-    public static List<Functor> computeHomologyFunctors(SimplexStorageStructure simplexStorageStructure, IntTuple size, int maxDimension) throws MalformedFunctorException, NoSolutionException{
+    public static List<Functor> computeHomologyFunctors(final SimplexStorageStructure simplexStorageStructure, final IntTuple size, final int maxDimension) throws MalformedFunctorException, NoSolutionException{
         log.debug("Starting to compute homology functors...");
         List<Functor> chainFunctors = computeChainFunctors(simplexStorageStructure, size, maxDimension);
 
         //The natural transformations from the chain functors to a basis change of the chain modules
-        List<Nat> naturalTransformation = new ArrayList<>();
-        List<Nat> naturalTransformation_inverse = new ArrayList<>();
+        final List<Nat> naturalTransformation = new ArrayList<>();
+        final List<Nat> naturalTransformation_inverse = new ArrayList<>();
 
         //The persistence modules, i.e homology of the multifiltration
         List<Functor> homfunctors = new ArrayList<>();
@@ -228,13 +227,13 @@ public class HomologyUtil {
         }
 
         //The dimension of the basis for the homology in C(v) for each v in N^r
-        List<Grid<Integer>> homologyDimension = new ArrayList<>();
+        final List<Grid<Integer>> homologyDimension = new ArrayList<>();
         for(int i=0;i<maxDimension;i++) {
             homologyDimension.add(Grid.create(size));
         }
 
         log.debug("Starting to compute basis change in each position...");
-        GridIterator.getSequence(size).parallelStream().forEach(v->{
+        for(IntTuple v : GridIterator.getSequence(size)) {
             log.debug("Starting to compute position "+v+"...");
             //For each index in the grid we compute the homology up to dimension 'maxdimension'
             List<List<Simplex>> chain = new ArrayList<>();
@@ -251,7 +250,7 @@ public class HomologyUtil {
                 naturalTransformation_inverse.get(k).setMap(v, M);
             }
             log.debug("Finished computing position "+v+".");
-        });
+        }
         log.debug("Finished computing basis change.");
 
         log.debug("Starting to apply basis change...");
@@ -267,11 +266,7 @@ public class HomologyUtil {
                     if(v.get(i) > 0){
                         IntTuple w = v.minus(IntTuple.getStandardBasisElement(v.length(), i));
                         BMatrix hmap = H.getMap(w, i);
-                        if(hmap == null)
-                            System.out.print("");
                         BMatrix natmap = naturalTransformation.get(k).getMap(v);
-                        if(natmap == null)
-                            System.out.print("");
                         H.setMap(w, natmap.mult(hmap), i);
                     }
                 }

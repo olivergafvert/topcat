@@ -20,11 +20,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package topcat.persistence.noise;
 
-import topcat.persistence.barcode.BasicBarcode;
+import topcat.persistence.fcf.FeatureCountingFunction;
 import topcat.persistence.functor.Functor;
 import topcat.util.GridIterator;
 import topcat.util.IntTuple;
 import topcat.util.Pair;
+import topcat.util.Tuple;
 
 import java.util.List;
 
@@ -35,12 +36,18 @@ import java.util.List;
 public class DomainNoise extends Noise{
     //private static final Logger log = LoggerFactory.getLogger(DomainNoise.class);
 
-    public BasicBarcode computeBasicBarcode(Functor F, List<List<Double>> filtrationValues){
-        BasicBarcode basicBarcode = new BasicBarcode();
-        List<IntTuple> indices = getIndexSequence(filtrationValues);
+    public static FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues, double[] weight){
+        Noise noise = new DomainNoise();
+        //TODO: Turn weight into epsilon.
+        return noise.computeFCF(F, filtrationValues);
+    }
+
+    public FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues, Tuple<Double> weight){
+        FeatureCountingFunction featureCountingFunction = new FeatureCountingFunction();
+        List<IntTuple> indices = getIndexSequence(filtrationValues, weight);
         List<Functor.Generator> f_generators = F.getGenerators();
 
-        basicBarcode.add(new Pair<>(0.0, f_generators.size()));
+        featureCountingFunction.add(new Pair<>(0.0, f_generators.size()));
 
         for(IntTuple epsilon : indices){
             Functor H = new Functor(F.getSize().minus(epsilon));
@@ -59,11 +66,11 @@ public class DomainNoise extends Noise{
                 }
             }
 
-            basicBarcode.add(new Pair<>(max, bar));
+            featureCountingFunction.add(new Pair<>(max, bar));
         }
 
-        System.out.println(basicBarcode);
+        System.out.println(featureCountingFunction);
 
-        return basicBarcode;
+        return featureCountingFunction;
     }
 }

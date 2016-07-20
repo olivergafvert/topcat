@@ -31,14 +31,11 @@ import topcat.persistence.noise.Noise;
 import topcat.persistence.noise.StandardNoise;
 import topcat.matrix.distancematrix.DistanceMatrix;
 import topcat.util.IntTuple;
-import topcat.util.Pair;
 import topcat.util.Point;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * Utils for constructing a simplicial complex for distance matrices and filtration values.
@@ -70,48 +67,43 @@ public class SimplicialComplex {
 
         //Compute all edges that will appear in the multifiltration and add them as 1-simplices
         int[] nonzeros_rows = distanceMatrix.getNonZeroRows();
-        IntStream.range(0, nonzeros_rows.length).mapToObj(r -> {
+
+        for(int r=0; r < nonzeros_rows.length; r++) {
             int i = nonzeros_rows[r];
             TIntHashSet upperNeighbors = new TIntHashSet();
             List<Simplex> local_simplices = new ArrayList<>();
             int[] nonzero_cols = distanceMatrix.getNonZeroRowEntries(i);
-            for(int j : nonzero_cols){
-                if(j <= i){
+            for (int j : nonzero_cols) {
+                if (j <= i) {
                     continue;
                 }
                 //Check if edge will appear in the multifiltration
                 boolean isLEQ = true;
-                for(int k=0;k<filtrationValue.size();k++){
-                    if(distanceMatrices.get(k).get(i, j) > filtrationValue.get(k)){
+                for (int k = 0; k < filtrationValue.size(); k++) {
+                    if (distanceMatrices.get(k).get(i, j) > filtrationValue.get(k)) {
                         isLEQ = false;
                         break;
                     }
                 }
-               if(isLEQ){
-                   upperNeighbors.add(j);
-                   local_simplices.add(new Simplex(i, j));
-               }
+                if (isLEQ) {
+                    upperNeighbors.add(j);
+                    local_simplices.add(new Simplex(i, j));
+                }
             }
-            return new Pair<>(new Pair<>(i, upperNeighbors), local_simplices);
-        }).collect(Collectors.toList()) //Collect first to make it thread safe
-                .stream()
-                .forEach(p -> {
-                    baseVertices.put(p._1()._1(), p._1()._2());
-                    simplices.addAll(p._2());
-                });
+            baseVertices.put(i, upperNeighbors);
+            simplices.addAll(local_simplices);
+        }
 
 
         //Add cofaces to each vertex inductively.
         int[] keys = baseVertices.keys();
-        IntStream.range(0, keys.length).parallel().mapToObj(k -> {
+        for(int k = 0; k < keys.length; k++){
             List<Simplex> local_simplices = new ArrayList<>();
             int[] vertices = new int[maxDimension + 1];
             vertices[0] = keys[k];
             addCofaces(local_simplices, baseVertices.get(keys[k]), vertices, 0, baseVertices);
-            return local_simplices;
-        }).collect(Collectors.toList()) //Collect first to make it thread safe
-                .stream()
-                .forEach(l -> simplices.addAll(l));
+            simplices.addAll(local_simplices);
+        }
 
 
         return simplices;
@@ -208,8 +200,8 @@ public class SimplicialComplex {
         //Find maximum value of the weights on the edges for each metric
         List<Integer> vertices = simplex.getVertices();
 
-
-        return IntStream.range(0, filtrationValues.size()).mapToObj(k -> {
+        List<Integer> filtrationIndices = new ArrayList<>();
+        for(int k=0 ; k < filtrationValues.size(); k++){
             DistanceMatrix distanceMatrix = distanceMatrices.get(k);
             double f_max = -1;
             for(int i=0;i<vertices.size();i++){
@@ -226,19 +218,20 @@ public class SimplicialComplex {
             while(i<filtrationvalues_k.size() && f_max > filtrationvalues_k.get(i)){
                 filtrationIndex = ++i;
             }
-            return filtrationIndex;
-        }).collect(Collectors.toList());
+            filtrationIndices.add(filtrationIndex);
+        }
+        return filtrationIndices;
     }
 
     public static void main(String[] args){
         List<Point> points = Point.circle2D(1, 50);
-        DistanceMatrix distanceMatrix = DistanceMatrix.computeDistanceMatrix(points, topcat.util.Point::euclideanDistance);
+        DistanceMatrix distanceMatrix = DistanceMatrix.computeEuclideanDistanceMatrix(points);
         List<List<Double>> filtrationValues = new ArrayList<>();
         filtrationValues.add(Arrays.asList(new Double[]{0.0, 0.1, 0.3, 1.8, 1.85, 1.9, 2.0, 2.1, 50.0}));
         List<DistanceMatrix> distanceMatrices = new ArrayList<>();
         distanceMatrices.add(distanceMatrix);
         PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(distanceMatrices, filtrationValues, 2);
         Noise noise = new StandardNoise();
-        noise.computeBasicBarcode(persistenceModules.get(1).getFunctor(), persistenceModules.get(1).getFiltrationValues());
+        noise.computeFCF(persistenceModules.get(1).getFunctor(), persistenceModules.get(1).getFiltrationValues());
     }
 }

@@ -30,7 +30,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.function.Function;
 
 /**
  * Created by oliver on 2016-03-01.
@@ -99,7 +98,7 @@ public class Image {
         return distanceMatrix;
     }
 
-    private static Image loadImage(String file, Function<Integer, int[]> colourValue){
+    public static Image loadImageRGB(String file){
         BufferedImage img = null;
         try {
             img = ImageIO.read(new File(file));
@@ -109,18 +108,26 @@ public class Image {
         Image image = new Image(img.getHeight(), img.getWidth());
         for(int i=0;i<img.getHeight();i++){
             for(int j=0;j<img.getWidth();j++){
-                image.setPixel(i, j, colourValue.apply(img.getRGB(j, i)));
+                image.setPixel(i, j, getRGB(img.getRGB(j, i)));
             }
         }
         return image;
     }
 
-    public static Image loadImageRGB(String file){
-        return loadImage(file, Image::getRGB);
-    }
-
     public static Image loadImageGrayscale(String file){
-        return loadImage(file, Image::getGrayscale);
+        BufferedImage img = null;
+        try {
+            img = ImageIO.read(new File(file));
+        } catch (IOException e) {
+            log.error("Failed to load image: "+file, e);
+        }
+        Image image = new Image(img.getHeight(), img.getWidth());
+        for(int i=0;i<img.getHeight();i++){
+            for(int j=0;j<img.getWidth();j++){
+                image.setPixel(i, j, getGrayscale(img.getRGB(j, i)));
+            }
+        }
+        return image;
     }
 
 
@@ -150,7 +157,7 @@ public class Image {
 //        double[] f = new double[]{0, 1};
 //        PersistenceModuleCollection persistenceModuleCollection = PersistenceModuleCollection.create(new Pair<>(d1, d2),
 //                new Pair<>(f, f), 2);
-//        StandardNoise.computeBasicBarcode(persistenceModuleCollection.get(1).getFunctor(),
+//        StandardNoise.computeFCF(persistenceModuleCollection.get(1).getFunctor(),
 //                persistenceModuleCollection.get(1).getFiltrationValues());
 //        try {
 //            FFmpegFrameGrabber g = new FFmpegFrameGrabber("textures/video/anim.mp4");

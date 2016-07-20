@@ -60,8 +60,9 @@ public class Functor {
         this.maps = new ArrayList<>();
         for(Grid<BMatrix> f_grid : F.maps){
             Grid<BMatrix> grid = Grid.create(this.size);
-            GridIterator.getSequence(this.size)
-                    .forEach(v -> grid.set(v, new BMatrix(f_grid.get(v))));
+            for(IntTuple v : GridIterator.getSequence(this.size)){
+                grid.set(v, new BMatrix(f_grid.get(v)));
+            }
             this.maps.add(grid);
         }
     }
@@ -228,7 +229,7 @@ public class Functor {
      */
     public List<Generator> getGenerators(){
         List<Generator> generators = new ArrayList<>();
-        GridIterator.getSequence(size).stream().forEach(v -> {
+        for(IntTuple v : GridIterator.getSequence(size)){
             try {
                 List<IntTuple> basis = IntTuple.getStandardBasisSequence(v.length());
                 BMatrix A = getMap(v.minus(basis.get(0)), v);
@@ -248,7 +249,7 @@ public class Functor {
             }catch (NoSolutionException nse){
                 log.info("Filed to compute minimal set of generators.", nse);
             }
-        });
+        }
         return generators;
     }
 
@@ -287,12 +288,12 @@ public class Functor {
     @Override
     public String toString(){
         StringBuilder sb = new StringBuilder();
-        GridIterator.getSequence(size).stream().forEach(v -> {
+        for(IntTuple v : GridIterator.getSequence(size)){
             sb.append(v).append(":\n");
             for(int i=0;i<v.length();i++){
                 sb.append(i).append(":").append(getMap(v, i));
             }
-        });
+        }
         return sb.toString();
     }
 
@@ -304,7 +305,7 @@ public class Functor {
      * @param F
      */
     public static void verify(Functor F){
-        GridIterator.getSequence(F.size).parallelStream().forEach(v -> {
+        for(IntTuple v : GridIterator.getSequence(F.size)){
             List<IntTuple> basis = IntTuple.getStandardBasisSequence(v.length());
             for (int i = 0; i < basis.size(); i++) {
                 for (int j = i + 1; j < basis.size(); j++) {
@@ -314,7 +315,7 @@ public class Functor {
                     assert(F.getMap(w, z).mult(F.getMap(v, w)).equals(F.getMap(wp, z).mult(F.getMap(v, wp))));
                 }
             }
-        });
+        }
     }
 
     /**

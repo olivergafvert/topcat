@@ -21,7 +21,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package topcat.matrix.distancematrix;
 
 import java.util.List;
-import java.util.stream.IntStream;
 
 /**
  * Created by oliver on 2016-04-05.
@@ -66,11 +65,20 @@ public class ArrayDistanceMatrix extends DistanceMatrix {
 
     @Override
     public int[] getNonZeroRows() {
-        return IntStream.range(0, rows).toArray();
+        return range(0, rows);
     }
 
     @Override
     public int[] getNonZeroRowEntries(int i) {
-        return IntStream.range(0, cols).toArray();
+        return range(0, cols);
+    }
+
+    private static int[] range(int start, int end){
+        int length = end-start;
+        int[] arr = new int[length];
+        for(int i=0;i<length;i++){
+            arr[i] = start+i;
+        }
+        return arr;
     }
 }
