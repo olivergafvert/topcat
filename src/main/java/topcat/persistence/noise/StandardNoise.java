@@ -34,14 +34,16 @@ import topcat.persistence.functor.Functor;
 import topcat.matrix.exception.WrongDimensionException;
 import topcat.util.IntTuple;
 import topcat.util.Pair;
+import topcat.util.Tuple;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Represents standard noise in the direction of a ray (which is equivalent to
- * standard noise in the direction of a cone). For details see the paper
- * Multidimensional Persistence and Noise by Chachólski et al. (arXiv:1505.06929).
+ * standard noise in the direction of a cone when the dimension is less than 3).
+ * For details see the paper Multidimensional Persistence and Noise by
+ * Chachólski et al. (arXiv:1505.06929).
  */
 public class StandardNoise extends Noise{
     private static final Logger log = LoggerFactory.getLogger(StandardNoise.class);
@@ -59,19 +61,28 @@ public class StandardNoise extends Noise{
 
     public static FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues, double[] weight){
         Noise noise = new StandardNoise();
-        //TODO: Turn weight into epsilon.
-        return noise.computeFCF(F, filtrationValues);
+        List<Double> weightList = new ArrayList<>();
+        for(int i=0;i<weight.length; i++){
+            weightList.add(weight[i]);
+        }
+        Tuple<Double> weight_tuple = new Tuple<>(weightList);
+        return noise.computeFCF(F, filtrationValues, weight_tuple);
     }
 
     /**
-     * Computes the feature counting function in the diagonal direction using standard noise in the direction of a cone.
+     * Computes a lower bound of the feature counting function in the direction described
+     * by 'weight'.
      * @param F
      * @param filtrationValues
      * @return
      */
-    public FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues){
+    public FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues, Tuple<Double> weight){
         FeatureCountingFunction featureCountingFunction = new FeatureCountingFunction();
-        List<IntTuple> indices = getIndexSequence(filtrationValues);
+        List<IntTuple> indices = getDiagonalIndexSequence(filtrationValues);
+
+        for(int i=0;i<indices.size();i++){
+            System.out.println(indices.get(i));
+        }
 
         List<Functor.Generator> f_generators = F.getGenerators();
 

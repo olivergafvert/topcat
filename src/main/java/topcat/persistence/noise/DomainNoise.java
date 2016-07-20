@@ -25,6 +25,7 @@ import topcat.persistence.functor.Functor;
 import topcat.util.GridIterator;
 import topcat.util.IntTuple;
 import topcat.util.Pair;
+import topcat.util.Tuple;
 
 import java.util.List;
 
@@ -41,9 +42,9 @@ public class DomainNoise extends Noise{
         return noise.computeFCF(F, filtrationValues);
     }
 
-    public FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues){
+    public FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues, Tuple<Double> weight){
         FeatureCountingFunction featureCountingFunction = new FeatureCountingFunction();
-        List<IntTuple> indices = getIndexSequence(filtrationValues);
+        List<IntTuple> indices = getIndexSequence(filtrationValues, weight);
         List<Functor.Generator> f_generators = F.getGenerators();
 
         featureCountingFunction.add(new Pair<>(0.0, f_generators.size()));

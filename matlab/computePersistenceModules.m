@@ -10,7 +10,11 @@ for i=1:length(distanceMatrices)
 end
 
 for i=1:length(filtrationValues)
-    dataSystem.addFiltrationValues(filtrationValues{i});
+    if length(filtrationValues{i}) ~= 3
+        error('filtrationValues{i} must have length equal to 3. Format: [start step_size end]');
+    end
+    f_arr = filtrationValues{i};
+    dataSystem.addFiltrationValues(f_arr(1):f_arr(2):f_arr(3));
 end
 
 persistenceModules = topcat.persistence.PersistenceModuleCollection.create(dataSystem, ...

@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Created by oliver on 2016-03-13.
+ * Represents a point in some n-dimensional R-vector space.
  */
 public class Point{
     List<Double> x;
@@ -48,6 +48,12 @@ public class Point{
         return this.x;
     }
 
+    /**
+     * Returns the Euclidean distance between two points.
+     * @param p1
+     * @param p2
+     * @return
+     */
     public static Double euclideanDistance(Point p1, Point p2){
         double d = 0;
         for(int i=0;i<p1.x.size();i++){
@@ -57,6 +63,12 @@ public class Point{
         return Math.sqrt(d);
     }
 
+    /**
+     * Sample points from a list with uniform distribution.
+     * @param points
+     * @param samples
+     * @return
+     */
     public static List<Point> samplePoints(List<Point> points, int samples){
         List<Point> sampledPoints = new ArrayList<>();
         TIntHashSet chosen = new TIntHashSet();
@@ -72,6 +84,12 @@ public class Point{
         return sampledPoints;
     }
 
+    /**
+     * Returns 'N' number of equidistant points on a circle.
+     * @param radius
+     * @param N
+     * @return
+     */
     public static List<Point> circle2D(double radius, int N){
         List<Point> points = new ArrayList<>();
         for(int i=0;i<N;i++){
@@ -84,6 +102,12 @@ public class Point{
         return points;
     }
 
+    /**
+     * Returns 'n' number of points samples from a 'd'-dimensional shpere.
+     * @param n
+     * @param d
+     * @return
+     */
     public static List<Point> getRandomSpherePoints(int n, int d) {
         List<Point> points = new ArrayList<>();
         Random r = new Random();
@@ -105,7 +129,7 @@ public class Point{
     }
 
     public static void main(String[] args){
-        List<Point> points = Point.getRandomSpherePoints(20, 2);
+        List<Point> points = Point.getRandomSpherePoints(100, 2);
 
         //Add distancematrices
         DistanceMatrix distanceMatrix = DistanceMatrix.computeEuclideanDistanceMatrix(points);
@@ -117,11 +141,11 @@ public class Point{
         //Add filtrationvalues
         List<List<Double>> filtrationValues = new ArrayList<>();
         List<Double> radiusFiltrationValues = new ArrayList<>();
-        for(int i=0;i<=10;i++){
+        for(int i=0;i<=5;i++){
             radiusFiltrationValues.add(i*0.2);
         }
         filtrationValues.add(radiusFiltrationValues);
-        filtrationValues.add(Arrays.asList(new Double[]{0.0, 5.0, 10.0, 15.0}));
+        filtrationValues.add(Arrays.asList(new Double[]{0.0, 10.0, 20.0, 30.0, 40.0}));
 
         int maxDimension = 3; //Compute 0th and 1 homology.
         PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(distanceMatrices, filtrationValues, maxDimension);

@@ -82,5 +82,34 @@ public abstract class Noise {
         return indices;
     }
 
-    public abstract FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues);
+    public List<IntTuple> getDiagonalIndexSequence(List<List<Double>> filtrationValues){
+        List<IntTuple> indices = new ArrayList<>();
+
+        IntTuple current = new IntTuple(filtrationValues.size());
+        IntTuple unit = new IntTuple(filtrationValues.size());
+        IntTuple size = new IntTuple(filtrationValues.size());
+        for(int i=0;i<filtrationValues.size();i++){
+            current.set(i, 0);
+            unit.set(i, 1);
+            size.set(i, filtrationValues.get(i).size());
+        }
+
+        while(current.lt(size)){
+            indices.add(current);
+            current = current.plus(unit);
+        }
+        return indices;
+    }
+
+
+    public FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues) {
+        List<Double> weightList = new ArrayList<>();
+        for(int i=0;i<filtrationValues.size(); i++){
+            weightList.add(1.0);
+        }
+        Tuple<Double> weight = new Tuple<>(weightList);
+        return computeFCF(F, filtrationValues, weight);
+    }
+
+    public abstract FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues, Tuple<Double> weight);
 }
