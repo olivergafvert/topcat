@@ -93,9 +93,9 @@ public class SimplexStorageStructure {
         List<List<Double>> filtrationValues = new ArrayList<>();
         for(int i=0;i<dimension;i++){
             List<Double> values = new ArrayList<>();
-            Arrays.asList(reader.readLine().trim().split(" "))
-                    .stream()
-                    .forEach(x -> values.add(Double.parseDouble(x)));
+            for(String x : reader.readLine().trim().split(" ")){
+                values.add(Double.parseDouble(x));
+            }
             filtrationValues.add(values);
         }
         IntTuple gridSize = new IntTuple(filtrationValues.size());
@@ -113,16 +113,16 @@ public class SimplexStorageStructure {
 
             //Parse vertices
             List<Integer> vertices = new ArrayList<>();
-            Arrays.asList(part[0].trim().split(" "))
-                    .stream()
-                    .forEach(v -> vertices.add(Integer.parseInt(v)));
+            for(String v : part[0].trim().split(" ")){
+                vertices.add(Integer.parseInt(v));
+            }
             Collections.sort(vertices);
 
             //Parse filtration index
             List<Integer> filtrationIndex = new ArrayList<>();
-            Arrays.asList(part[1].trim().split(" "))
-                    .stream()
-                    .forEach(x -> filtrationIndex.add(Integer.parseInt(x)));
+            for(String x : part[1].trim().split(" ")){
+                filtrationIndex.add(Integer.parseInt(x));
+            }
 
             simplexStorageStructure.addElement(new Simplex(vertices), new IntTuple(filtrationIndex));
         }
@@ -136,12 +136,12 @@ public class SimplexStorageStructure {
             size.set(i, filtrationValues.get(i).size());
         }
         StringBuilder sb = new StringBuilder();
-        GridIterator.getSequence(size).stream().forEach(v -> {
+        for(IntTuple v : GridIterator.getSequence(size)){
             sb.append(v).append(":\n");
             sb.append("Dimension 0: ").append(getSimplicesAt(0, v)).append("\n");
             sb.append("Dimension 1; ").append(getSimplicesAt(1, v)).append("\n");
             sb.append("Dimension 2; ").append(getSimplicesAt(2, v)).append("\n");
-        });
+        }
         return sb.toString();
     }
 }

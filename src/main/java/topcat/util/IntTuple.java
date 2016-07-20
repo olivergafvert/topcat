@@ -34,8 +34,10 @@ public class IntTuple extends Tuple<Integer>{
     }
 
     public IntTuple(int dim){
-        super(new ArrayList<>());
-        for(int i=0;i<dim;i++) this.tuple.add(0);
+        super(new ArrayList<Integer>());
+        for(int i=0;i<dim;i++){
+            this.tuple.add(0);
+        }
     }
 
     public IntTuple(IntTuple intTuple){

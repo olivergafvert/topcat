@@ -27,10 +27,8 @@ import topcat.util.Point;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
-import java.util.function.BiFunction;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public abstract class DistanceMatrix {
     public final int cols;
@@ -72,7 +70,7 @@ public abstract class DistanceMatrix {
     public TIntObjectHashMap<TIntHashSet> getEdgesLEQThan(double val){
         TIntObjectHashMap<TIntHashSet> edges = new TIntObjectHashMap<>();
         int[] nonzero_rows = getNonZeroRows();
-        IntStream.range(0, nonzero_rows.length).parallel().mapToObj(i -> {
+        for(int i=0;i<nonzero_rows.length;i++){
             int row = nonzero_rows[i];
             TIntHashSet vertices = new TIntHashSet();
             int[] nonzero_cols = getNonZeroRowEntries(row);
@@ -81,87 +79,54 @@ public abstract class DistanceMatrix {
                     vertices.add(j);
                 }
             }
-            return new Pair<>(row, vertices);
-        }).collect(Collectors.toList())
-                .stream()
-                .forEach(pair -> edges.put(pair._1(), pair._2()));
+            edges.put(row, vertices);
+        }
         return edges;
     }
 
-    public static DistanceMatrix computeDistanceMatrix(List<Point> points, BiFunction<Point, Point, Double> function){
-        List<List<Double>> distanceMatrix = points.parallelStream()
-                .map(
-                        p1 -> points.stream()
-                                .map(
-                                        p2 -> function.apply(p1, p2)
-                                ).collect(Collectors.toList())
-                ).collect(Collectors.toList());
-        DistanceMatrix d = new ArrayDistanceMatrix(points.size(), points.size());
-        IntStream.range(0, distanceMatrix.size()).forEach(i -> d.setRow(i, distanceMatrix.get(i)));
-        return d;
+    public static DistanceMatrix computeEuclideanDistanceMatrix(List<Point> points){
+        DistanceMatrix distanceMatrix = new ArrayDistanceMatrix(points.size(), points.size());
+        for(int i=0;i<points.size();i++){
+            distanceMatrix.set(i, i, 0);
+            for(int j=i+1;j<points.size();j++){
+                double d = euclideanDistance(points.get(i).getX(), points.get(j).getX());
+                distanceMatrix.set(i, j, d);
+                distanceMatrix.set(j, i, d);
+            }
+        }
+        return distanceMatrix;
     }
 
-    public static DistanceMatrix computeDensityMatrix(DistanceMatrix distanceMatrix){
-        List<List<Double>> densityMatrix = IntStream.range(0, distanceMatrix.rows).parallel().mapToObj(r -> {
-            double[] row = distanceMatrix.getRow(r);
-            List<Pair<Double, Integer>> elements = new ArrayList<>();
-            for(int i=0;i<row.length;i++){
-                elements.add(new Pair<>(row[i], i));
-            }
-            Collections.sort(elements, (o1, o2) -> o1._1()<o2._1() ? -1 : 1);
-            List<Pair<Double, Integer>> density = new ArrayList<>();
-            for(int i=0;i<elements.size();i++){
-                double radius = elements.get(i)._1();
-                double V = 4*3.14*radius*radius*radius/3;
-                if(radius < 1E-12){
-                    density.add(new Pair<>(i+1.0, elements.get(i)._2()));
-                }else{
-                    density.add(new Pair<>((i+1.0)/V, elements.get(i)._2()));
-                }
-            }
-            Collections.sort(density, (o1, o2) -> o1._2()-o2._2());
-            return density.stream().map(e -> e._1()).collect(Collectors.toList());
-        }).collect(Collectors.toList());
-        DistanceMatrix d = new ArrayDistanceMatrix(distanceMatrix.rows, distanceMatrix.cols);
-        IntStream.range(0, densityMatrix.size()).forEach(i -> d.setRow(i, densityMatrix.get(i)));
-        return d;
-    }
-
-    public static DistanceMatrix computeInverseDensityMatrix(DistanceMatrix distanceMatrix){
-        DistanceMatrix inverseDensity = new ArrayDistanceMatrix(distanceMatrix.rows, distanceMatrix.cols);
-        DistanceMatrix densityMatrix = computeDensityMatrix(distanceMatrix);
-        IntStream.range(0, densityMatrix.rows).forEach(r -> {
-            double[] row = densityMatrix.getRow(r);
-            List<Double> list = new ArrayList<>();
-            for(double d : row){
-                if(d == 0.0){
-                    list.add(Double.MAX_VALUE);
-                }else{
-                    list.add(1.0/d);
-                }
-            }
-            inverseDensity.setRow(r, list);
-        });
-        return inverseDensity;
+    private static double euclideanDistance(List<Double> a, List<Double> b){
+        double d = 0;
+        for(int i=0;i<a.size();i++){
+            d += (a.get(i)-b.get(i))*(a.get(i)-b.get(i));
+        }
+        return Math.sqrt(d);
     }
 
     public static DistanceMatrix computeKNNMatrix(DistanceMatrix distanceMatrix){
-        List<List<Double>> densityMatrix = IntStream.range(0, distanceMatrix.rows).parallel().mapToObj(r -> {
+        DistanceMatrix densityMatrix = new ArrayDistanceMatrix(distanceMatrix.rows, distanceMatrix.cols);
+        for(int r=0; r<distanceMatrix.rows;r++){
             double[] row = distanceMatrix.getRow(r);
+
+            //Elements of the row with positions
             List<Pair<Double, Integer>> elements = new ArrayList<>();
             for(int i=0;i<row.length;i++){
                 elements.add(new Pair<>(row[i], i));
             }
-            Collections.sort(elements, (o1, o2) -> o1._1().compareTo(o2._1()));
-            List<Pair<Double, Integer>> knn = new ArrayList<>();
+            Collections.sort(elements, new Comparator<Pair<Double, Integer>>() {
+                @Override
+                public int compare(Pair<Double, Integer> o1, Pair<Double, Integer> o2) {
+                    return o1._1().compareTo(o2._1());
+                }
+            });
+
+            //Set the nearest neighbors
             for(int i=0;i<elements.size();i++){
-                knn.add(new Pair<>((double)i, elements.get(i)._2()));
+                densityMatrix.set(r, elements.get(i)._2(), i);
             }
-            Collections.sort(knn, (o1, o2) -> o1._2()-o2._2());
-            return knn.stream().map(e -> e._1()).collect(Collectors.toList());
-        }).collect(Collectors.toList());
-        DistanceMatrix d = new ArrayDistanceMatrix(distanceMatrix.rows, distanceMatrix.cols);
-        IntStream.range(0, densityMatrix.size()).forEach(i -> d.setRow(i, densityMatrix.get(i)));
-        return d;
+        }
+        return densityMatrix;
     }
 }

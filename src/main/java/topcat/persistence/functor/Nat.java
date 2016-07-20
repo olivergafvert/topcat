@@ -75,10 +75,10 @@ public class Nat {
     @Override
     public String toString(){
         StringBuilder sb = new StringBuilder();
-        GridIterator.getSequence(size).stream().forEach(v -> {
+        for(IntTuple v : GridIterator.getSequence(size)){
             sb.append(v).append(":\n");
             sb.append(getMap(v));
-        });
+        }
         return sb.toString();
     }
 

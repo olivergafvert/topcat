@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package topcat.persistence.barcode;
+package topcat.persistence.fcf;
 
 import topcat.util.Pair;
 
@@ -31,14 +31,39 @@ import java.util.Set;
  * See the paper Multidimensional Persistence and Noise by Chachólski et al.
  * (arXiv:1505.06929) for details.
  */
-public class BasicBarcode extends ArrayList<Pair<Double, Integer>> {
+public class FeatureCountingFunction extends ArrayList<Pair<Double, Integer>> {
+
+    /**
+     * Returns the critical epsilon values of the feature counting function.
+     * @return
+     */
+    public double[] getEpsilons(){
+        double[] epsilons = new double[size()];
+        for(int i=0;i<size();i++){
+            epsilons[i] = get(i)._1();
+        }
+        return epsilons;
+    }
+
+    /**
+     * Returns the values of the feature counting function at the critical epsilon
+     * values.
+     * @return
+     */
+    public int[] getValues(){
+        int[] values = new int[size()];
+        for(int i=0;i<size();i++){
+            values[i] = get(i)._2();
+        }
+        return values;
+    }
 
     @Override
     public boolean equals(Object o){
         if(o==null || !o.getClass().equals(getClass())){
             return false;
         }
-        BasicBarcode other = (BasicBarcode) o;
+        FeatureCountingFunction other = (FeatureCountingFunction) o;
         if(size() != other.size()){
             return false;
         }
@@ -57,7 +82,7 @@ public class BasicBarcode extends ArrayList<Pair<Double, Integer>> {
      * @param g
      * @return
      */
-    private static double computeInterleaving(BasicBarcode f, BasicBarcode g){
+    private static double computeInterleaving(FeatureCountingFunction f, FeatureCountingFunction g){
         double f_e = -1;
         for(Pair<Double, Integer> f_pair : f){
             double min = Double.POSITIVE_INFINITY;
@@ -78,7 +103,7 @@ public class BasicBarcode extends ArrayList<Pair<Double, Integer>> {
      * @param g
      * @return
      */
-    public static double interleavingDistance(BasicBarcode f, BasicBarcode g){
+    public static double interleavingDistance(FeatureCountingFunction f, FeatureCountingFunction g){
         double f_e = computeInterleaving(f, g);
         double g_e = computeInterleaving(g, f);
         return f_e < g_e ? g_e : f_e;
@@ -90,7 +115,7 @@ public class BasicBarcode extends ArrayList<Pair<Double, Integer>> {
      * @param g
      * @return
      */
-    public static double interleavingDistance(BasicBarcodeCollection f, BasicBarcodeCollection g){
+    public static double interleavingDistance(FeatureCountingFunctionCollection f, FeatureCountingFunctionCollection g){
         if(f == null || g == null || f.getPresentDimensions() == null || g.getPresentDimensions() == null) return Double.MAX_VALUE;
 
         Set<Integer> dimensions = new HashSet<Integer>();

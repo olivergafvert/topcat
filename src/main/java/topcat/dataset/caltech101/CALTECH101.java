@@ -60,6 +60,6 @@ public class CALTECH101 {
         PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(distanceMatrices,
                 filtrationValues, 2);
         Noise noise = new StandardNoise(10000000, 10);
-        noise.computeBasicBarcode(persistenceModules.get(1).getFunctor(), persistenceModules.get(1).getFiltrationValues());
+        noise.computeFCF(persistenceModules.get(1).getFunctor(), persistenceModules.get(1).getFiltrationValues());
     }
 }

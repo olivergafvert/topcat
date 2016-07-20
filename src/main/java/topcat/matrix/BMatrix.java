@@ -31,6 +31,7 @@ import topcat.util.Pair;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -386,7 +387,13 @@ public class BMatrix {
         List<IntPair> pivots = reduceRows(Ap, Bp);
 
         //Sort the pivots by column
-        Collections.sort(pivots, (o1, o2) -> o1._2()-o2._2());
+        Collections.sort(pivots, new Comparator<IntPair>() {
+            @Override
+            public int compare(IntPair o1, IntPair o2) {
+                return o1._2()-o2._2();
+            }
+        });
+
         TIntHashSet pivotHashSet = new TIntHashSet();
         for(IntPair pair : pivots){
             pivotHashSet.add(pair._1());

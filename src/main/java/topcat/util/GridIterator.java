@@ -53,6 +53,11 @@ public class GridIterator implements Iterator<IntTuple> {
         return ret;
     }
 
+    @Override
+    public void remove() {
+        //TODO: Implement.
+    }
+
     private void increment(){
         List<Integer> elements = current.getElements();
         int k=elements.size()-1;

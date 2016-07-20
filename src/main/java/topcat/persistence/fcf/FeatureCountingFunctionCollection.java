@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package topcat.persistence.barcode;
+package topcat.persistence.fcf;
 
 import topcat.util.Pair;
 
@@ -29,17 +29,17 @@ import java.util.Set;
 /**
  * A collection that holds the basic barcodes for each dimension.
  */
-public class BasicBarcodeCollection {
+public class FeatureCountingFunctionCollection {
 
-    private HashMap<Integer, BasicBarcode> basicBarcodes = new HashMap<>();
+    private HashMap<Integer, FeatureCountingFunction> basicBarcodes = new HashMap<>();
 
-    public void set(Integer dim, BasicBarcode basicBarcode){
-        basicBarcodes.put(dim, basicBarcode);
+    public void set(Integer dim, FeatureCountingFunction featureCountingFunction){
+        basicBarcodes.put(dim, featureCountingFunction);
     }
 
-    public BasicBarcode get(Integer dim){
+    public FeatureCountingFunction get(Integer dim){
         if(!basicBarcodes.containsKey(dim)){
-            BasicBarcode ret = new BasicBarcode();
+            FeatureCountingFunction ret = new FeatureCountingFunction();
             ret.add(new Pair<>(0.0, 0));
             return ret;
         }
