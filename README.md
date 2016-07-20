@@ -35,5 +35,5 @@ The library can be accessed either within java or via the MATLAB-interface. To a
 addpath(genpath('path to/topcat/matlab'))
 ~~~ 
 
-Then execute the script load_topcal.m.
+Then execute the script load_topcat.m.
 
