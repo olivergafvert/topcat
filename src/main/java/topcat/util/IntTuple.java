@@ -49,6 +49,17 @@ public class IntTuple extends Tuple<Integer>{
     }
 
     /**
+     * Take double array as input and return the closest IntTuple.
+     * @param vals
+     */
+    public IntTuple(double[] vals){
+        super(new ArrayList<Integer>());
+        for(int i=0;i<vals.length;i++){
+            this.tuple.add((int)Math.round(vals[i]));
+        }
+    }
+
+    /**
      * Computes the element-wise addition of this tuple with 'v'.
      * @param v
      * @return
