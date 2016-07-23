@@ -1,4 +1,4 @@
-function f = domainFCF(persistenceModule)
+function f = domainFCF(persistenceModule, direction)
 
 fcf = topcat.persistence.noise.DomainNoise.computeFCFStatic(...
     persistenceModule.getFunctor(), persistenceModule.getFiltrationValues());

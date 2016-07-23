@@ -1,4 +1,4 @@
-function f = standardFCF(persistenceModule)
+function f = standardFCF(persistenceModule, direction)
 
 fcf = topcat.persistence.noise.StandardNoise.computeFCFStatic(...
     persistenceModule.getFunctor(), persistenceModule.getFiltrationValues());
