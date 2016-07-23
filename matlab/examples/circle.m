@@ -16,20 +16,25 @@ end
 
 plot(coords(:, 1), coords(:, 2), 'ro')
 
+%%
+
 distanceMatrices{1} = matrix.distancematrix.DistanceMatrix.computeEuclideanDistanceMatrix(...
     points);
 distanceMatrices{2} = matrix.distancematrix.DistanceMatrix.computeKNNMatrix(...
     distanceMatrices{1});
 
-filtrationValues{1} = [0 0.1 1];
+filtrationValues{1} = [0 0.1 2];
 filtrationValues{2} = [0 20 100];
+    
+cpers = computePersistenceModules(distanceMatrices, filtrationValues, 2)
 
-circlePersistenceModules = computePersistenceModules(distanceMatrices, filtrationValues, 2)
 
-persistenceModule = circlePersistenceModules.get(1);
-direction = [0];
 
-fcf = standardFCF(persistenceModule, direction)
+%%
+
+persistenceModule = cpers.get(1);
+
+fcf = standardFCF(persistenceModule)
 
 plotFCF(fcf)
 
