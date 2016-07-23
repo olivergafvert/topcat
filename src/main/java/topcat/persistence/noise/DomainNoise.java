@@ -36,15 +36,20 @@ import java.util.List;
 public class DomainNoise extends Noise{
     //private static final Logger log = LoggerFactory.getLogger(DomainNoise.class);
 
-    public static FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues, double[] weight){
+    /**
+     * For MATLAB-interface
+     * @param F
+     * @param filtrationValues
+     * @return
+     */
+    public static FeatureCountingFunction computeFCFStatic(Functor F, List<List<Double>> filtrationValues){
         Noise noise = new DomainNoise();
-        //TODO: Turn weight into epsilon.
         return noise.computeFCF(F, filtrationValues);
     }
 
-    public FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues, Tuple<Double> weight){
+    public FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues){
         FeatureCountingFunction featureCountingFunction = new FeatureCountingFunction();
-        List<IntTuple> indices = getIndexSequence(filtrationValues, weight);
+        List<IntTuple> indices = getDiagonalIndexSequence(filtrationValues);
         List<Functor.Generator> f_generators = F.getGenerators();
 
         featureCountingFunction.add(new Pair<>(0.0, f_generators.size()));

@@ -1,8 +1,7 @@
 function f = domainFCF(persistenceModule, direction)
 
-fcf = topcat.persistence.noise.DomainNoise.computeFCF(...
-    persistenceModule.getFunctor(), persistenceModule.getFiltrationValues(), ...
-    direction);
+fcf = topcat.persistence.noise.DomainNoise.computeFCFStatic(...
+    persistenceModule.getFunctor(), persistenceModule.getFiltrationValues());
 
 f = zeros(fcf.size(), 2);
 
