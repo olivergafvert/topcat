@@ -17,6 +17,8 @@ end
 
 plot3(coords(:, 1), coords(:, 2), coords(:, 3), 'ro')
 
+%%
+
 distanceMatrices{1} = matrix.distancematrix.DistanceMatrix.computeEuclideanDistanceMatrix(...
     points);
 distanceMatrices{2} = matrix.distancematrix.DistanceMatrix.computeKNNMatrix(...
@@ -27,10 +29,11 @@ filtrationValues{2} = [0 20 100];
 
 spherePersistenceModules = computePersistenceModules(distanceMatrices, filtrationValues, 3);
 
-persistenceModule = spherePersistenceModules.get(2);
-direction = [0.2 20];
+%%
 
-fcf = standardFCF(persistenceModule, direction)
+persistenceModule = spherePersistenceModules.get(2);
+
+fcf = standardFCF(persistenceModule)
 
 plotFCF(fcf)
 

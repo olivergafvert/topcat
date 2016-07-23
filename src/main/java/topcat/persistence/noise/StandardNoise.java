@@ -59,30 +59,26 @@ public class StandardNoise extends Noise{
         this.cache_size = cache_size;
     }
 
-    public static FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues, double[] weight){
-        Noise noise = new StandardNoise();
-        List<Double> weightList = new ArrayList<>();
-        for(int i=0;i<weight.length; i++){
-            weightList.add(weight[i]);
-        }
-        Tuple<Double> weight_tuple = new Tuple<>(weightList);
-        return noise.computeFCF(F, filtrationValues, weight_tuple);
-    }
-
     /**
-     * Computes a lower bound of the feature counting function in the direction described
-     * by 'weight'.
+     * For MATLAB-interface
      * @param F
      * @param filtrationValues
      * @return
      */
-    public FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues, Tuple<Double> weight){
+    public static FeatureCountingFunction computeFCFStatic(Functor F, List<List<Double>> filtrationValues){
+        Noise noise = new StandardNoise();
+        return noise.computeFCF(F, filtrationValues);
+    }
+
+    /**
+     * Computes a lower bound of the feature counting function in the diagonal direction.
+     * @param F
+     * @param filtrationValues
+     * @return
+     */
+    public FeatureCountingFunction computeFCF(Functor F, List<List<Double>> filtrationValues){
         FeatureCountingFunction featureCountingFunction = new FeatureCountingFunction();
         List<IntTuple> indices = getDiagonalIndexSequence(filtrationValues);
-
-        for(int i=0;i<indices.size();i++){
-            System.out.println(indices.get(i));
-        }
 
         List<Functor.Generator> f_generators = F.getGenerators();
 
