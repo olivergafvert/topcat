@@ -39,49 +39,13 @@ import topcat.util.Pair;
 import topcat.util.paralelliterator.ParalellIterator;
 
 import java.util.*;
+import java.util.concurrent.*;
 
 /**
  * Tools for computing the homology of a multifiltration.
  */
 public class HomologyUtil {
     private static Logger log = LoggerFactory.getLogger(HomologyUtil.class);
-
-    /**
-     * Computes the boundary matrix \partial_n: C_n \to C_n-1.
-     * @param lower the simplices in C_n-1
-     * @param current the simplices in C_n
-     * @return
-     */
-    private static BMatrix computeBoundaryMatrix(List<Simplex> lower, List<Simplex> current){
-        HashMap<Simplex, BVector> t_matrix = new HashMap<>();
-        for(int i=0;i<lower.size();i++){
-            t_matrix.put(lower.get(i), new BVector(current.size()));
-        }
-        for(int i=0;i<current.size();i++){
-            Simplex s = current.get(i);
-            for(Simplex ss : s.getBoundaryList()){
-                t_matrix.get(ss).set(i, true);
-            }
-        }
-        BMatrix boundaryMatrix = new BMatrix(lower.size(), current.size());
-        for(int i=0;i<lower.size();i++){
-            boundaryMatrix.setRow(i, t_matrix.get(lower.get(i)));
-        }
-        return boundaryMatrix;
-    }
-
-
-    /**
-     * Computes a basis for Z that contains B as a sub-basis.
-     * @param Z
-     * @param B
-     * @return
-     * @throws NoSolutionException
-     */
-    private static Pair<BMatrix, BMatrix> computeNormalizedBasis(BMatrix Z, BMatrix B) throws NoSolutionException {
-        BMatrix Hbasis = BMatrix.getBasis(BMatrix.concat(B.transpose(), Z.transpose()).transpose()).subMatrix(B.rows, -1, 0, -1);
-        return new Pair<>(Hbasis, B);
-    }
 
     /**
      * Computes the inclusion map C^i_n \hookrightarrow C^{i+j}_n.
@@ -140,66 +104,7 @@ public class HomologyUtil {
         return chainFunctors;
     }
 
-    /**
-     * Computes a basis for the homology in each position of the chain complex
-     *   C_n -> C_n-1 -> ... -> C_1 -> C_0
-     * where C_i is given by the simplices at position i in the list 'chain'.
-     * @param chain - a list of lists of simplices describing a chain complex.
-     * @return - a basis for the homology in each position in the chain complex.
-     */
-    private static List<BMatrix> computeHomologyBasis(List<List<Simplex>> chain){
-        int maxDimension = chain.size()-1;
-        BMatrix[] Z = new BMatrix[maxDimension]; //The cycle subspaces
-        BMatrix[] B = new BMatrix[maxDimension]; //The boundary subspaces
-        int[] dims = new int[maxDimension];
 
-        for (int k = 1; k <= maxDimension; k++) {
-            //The chain of the lower dimension
-            List<Simplex> lower = chain.get(k - 1);
-            dims[k - 1] = lower.size();
-
-            //The chain of the current dimension
-            List<Simplex> current = chain.get(k);
-
-            //Compute the boundary matrix
-            BMatrix boundaryMatrix = computeBoundaryMatrix(lower, current);
-            if (boundaryMatrix != null) {
-                Pair<BMatrix, BMatrix> basis = BMatrix.reduction(boundaryMatrix);
-                Z[k - 1] = basis._1();
-                B[k - 1] = basis._2();
-            } else {
-                Z[k - 1] = null;
-                B[k - 1] = null;
-            }
-        }
-        //Compute the quotients Z/B = H;
-        List<BMatrix> homologyBasis = new ArrayList<>(); //The homology subspaces
-        if (B[0] == null || B[0].rows == 0) {
-            homologyBasis.add(BMatrix.identity(dims[0]));
-        } else {
-            BMatrix H = BMatrix.extendBasis(B[0]).subMatrix(B[0].rows, -1, 0, -1);
-            homologyBasis.add(H);
-        }
-        for (int k = 1; k < maxDimension; k++) {
-            if (B[k] == null || B[k].rows == 0) {
-                if (Z[k - 1] == null || Z[k - 1].rows == 0) {
-                    homologyBasis.add(new BMatrix(0, dims[k]));
-                } else {
-                    BMatrix H = Z[k - 1];
-                    homologyBasis.add(H);
-                }
-            } else {
-                if(Z[k-1].rows == B[k].rows){
-                    homologyBasis.add(new BMatrix(0, dims[k]));
-                }else {
-                    Pair<BMatrix, BMatrix> basis = computeNormalizedBasis(Z[k - 1], B[k]);
-                    BMatrix H = basis._1();
-                    homologyBasis.add(H);
-                }
-            }
-        }
-        return homologyBasis;
-    }
 
     /**
      * Computes the homology functors for each dimension less than 'maxdimension'.
@@ -233,23 +138,39 @@ public class HomologyUtil {
         }
 
         log.debug("Starting to compute basis change in each position...");
-        for(IntTuple v : GridIterator.getSequence(size)) {
-            log.debug("Starting to compute position "+v+"...");
-            //For each index in the grid we compute the homology up to dimension 'maxdimension'
-            List<List<Simplex>> chain = new ArrayList<>();
-            for (int k = 0; k <= maxDimension; k++) {
-                chain.add(simplexStorageStructure.getSimplicesLEQThan(k, v));
+        ExecutorService exec = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        List<Future> futures = new ArrayList<>();
+        List<HomologyWorker> workers = new ArrayList<>();
+        for(IntTuple v : GridIterator.getSequence(size)){
+            HomologyWorker worker = new HomologyWorker(simplexStorageStructure, v, maxDimension);
+            workers.add(worker);
+            futures.add(exec.submit(worker));
+        }
+        exec.shutdown();
+
+        while(!exec.isTerminated()){
+            try{
+                exec.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+            }catch (InterruptedException ire){
+                log.error("Failed to terminate executor service.", ire);
             }
-            List<BMatrix> homologyBasis = computeHomologyBasis(chain);
-            for(int k=0;k<homologyBasis.size();k++){
-                BMatrix H = homologyBasis.get(k);
-                BMatrix M = BMatrix.extendBasis(H).transpose();
-                BMatrix Minv = M.inverse();
-                homologyDimension.get(k).set(v, H.rows);
-                naturalTransformation.get(k).setMap(v, Minv);
-                naturalTransformation_inverse.get(k).setMap(v, M);
+        }
+        try {
+            for (Future future : futures) {
+                future.get();
             }
-            log.debug("Finished computing position "+v+".");
+        }catch (InterruptedException ire){
+            log.error("Failed to terminate executor service.", ire);
+        }catch (ExecutionException exe){
+            log.error("Failed to terminate executor service.", exe);
+        }
+
+        for(HomologyWorker worker : workers){
+            for(int k=0;k<maxDimension;k++){
+                homologyDimension.get(k).set(worker.v, worker.homologyDimension[k]);
+                naturalTransformation.get(k).setMap(worker.v, worker.naturalTransformation[k]);
+                naturalTransformation_inverse.get(k).setMap(worker.v, worker.naturalTransformation_inverse[k]);
+            }
         }
         log.debug("Finished computing basis change.");
 
