@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package topcat.persistence.fcf;
+package topcat.persistence.stablerank;
 
 import topcat.util.Pair;
 
@@ -27,19 +27,19 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * A collection that holds the basic barcodes for each dimension.
+ * A collection that holds the Stable Rank for each dimension.
  */
-public class FeatureCountingFunctionCollection {
+public class StableRankFunctionCollection {
 
-    private HashMap<Integer, FeatureCountingFunction> basicBarcodes = new HashMap<>();
+    private HashMap<Integer, StableRankFunction> basicBarcodes = new HashMap<>();
 
-    public void set(Integer dim, FeatureCountingFunction featureCountingFunction){
-        basicBarcodes.put(dim, featureCountingFunction);
+    public void set(Integer dim, StableRankFunction stableRankFunction){
+        basicBarcodes.put(dim, stableRankFunction);
     }
 
-    public FeatureCountingFunction get(Integer dim){
+    public StableRankFunction get(Integer dim){
         if(!basicBarcodes.containsKey(dim)){
-            FeatureCountingFunction ret = new FeatureCountingFunction();
+            StableRankFunction ret = new StableRankFunction();
             ret.add(new Pair<>(0.0, 0));
             return ret;
         }

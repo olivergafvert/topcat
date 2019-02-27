@@ -33,6 +33,15 @@ public class ArrayDistanceMatrix extends DistanceMatrix {
         this.distanceMatrix = distanceMatrix;
     }
 
+    public ArrayDistanceMatrix(List<List<Double>> distanceMatrix){
+        this(distanceMatrix.size(), distanceMatrix.size() > 0 ? distanceMatrix.get(0).size() : 0);
+        for(int i=0;i<distanceMatrix.size();i++){
+            for(int j=0;j<distanceMatrix.get(i).size();j++){
+                set(i, j, distanceMatrix.get(i).get(j));
+            }
+        }
+    }
+
     public ArrayDistanceMatrix(int rows, int cols){
         super(rows, cols);
         this.distanceMatrix = new double[rows][];

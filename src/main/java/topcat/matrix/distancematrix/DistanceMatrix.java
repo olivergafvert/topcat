@@ -20,8 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package topcat.matrix.distancematrix;
 
-import gnu.trove.map.hash.TIntObjectHashMap;
-import gnu.trove.set.hash.TIntHashSet;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import topcat.util.Pair;
 import topcat.util.Point;
 
@@ -67,12 +67,12 @@ public abstract class DistanceMatrix {
      * @param val
      * @return
      */
-    public TIntObjectHashMap<TIntHashSet> getEdgesLEQThan(double val){
-        TIntObjectHashMap<TIntHashSet> edges = new TIntObjectHashMap<>();
+    public Int2ObjectOpenHashMap<IntOpenHashSet> getEdgesLEQThan(double val){
+        Int2ObjectOpenHashMap<IntOpenHashSet> edges = new Int2ObjectOpenHashMap<>();
         int[] nonzero_rows = getNonZeroRows();
         for(int i=0;i<nonzero_rows.length;i++){
             int row = nonzero_rows[i];
-            TIntHashSet vertices = new TIntHashSet();
+            IntOpenHashSet vertices = new IntOpenHashSet();
             int[] nonzero_cols = getNonZeroRowEntries(row);
             for(int j : nonzero_cols){
                 if(j > row && get(row, j) <= val){
@@ -128,5 +128,17 @@ public abstract class DistanceMatrix {
             }
         }
         return densityMatrix;
+    }
+
+    public List<List<Double>> toList(){
+        List<List<Double>> dmat = new ArrayList<>();
+        for(int i=0;i<this.rows;i++){
+            List<Double> row = new ArrayList<>();
+            for(int j=0;j<this.cols;j++){
+                row.add(get(i, j));
+            }
+            dmat.add(row);
+        }
+        return dmat;
     }
 }

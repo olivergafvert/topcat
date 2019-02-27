@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package topcat.util;
 
-import gnu.trove.map.hash.TIntObjectHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 
 /**
  * Represents an n-dimensional grid for some n>0. It is implemented using
@@ -31,7 +31,7 @@ public class Grid<T> {
     private IntTuple size;
     private SubGrid grid = new SubGrid(0);
 
-    Grid(IntTuple size){
+    public Grid(IntTuple size){
         this.size = size;
     }
 
@@ -67,7 +67,7 @@ public class Grid<T> {
 
     class SubGrid{
         protected int level;
-        private TIntObjectHashMap<SubGrid> subgrid = new TIntObjectHashMap<>();
+        private Int2ObjectOpenHashMap<SubGrid> subgrid = new Int2ObjectOpenHashMap<>();
 
         SubGrid(int level){
             this.level = level;
@@ -103,7 +103,7 @@ public class Grid<T> {
     }
 
     class BaseGrid extends SubGrid{
-        private TIntObjectHashMap<T> elements = new TIntObjectHashMap<>();
+        private Int2ObjectOpenHashMap<T> elements = new Int2ObjectOpenHashMap<>();
 
         BaseGrid(int level) {
             super(level);

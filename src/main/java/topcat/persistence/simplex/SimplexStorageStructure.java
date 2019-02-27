@@ -20,7 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package topcat.persistence.simplex;
 
-import gnu.trove.map.hash.TIntObjectHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import topcat.util.BinomialCoeffTable;
 import topcat.util.Grid;
 import topcat.util.GridIterator;
 import topcat.util.IntTuple;
@@ -39,14 +40,18 @@ import java.util.List;
  * storing a multifiltered simplicial complex.
  */
 public class SimplexStorageStructure {
-    TIntObjectHashMap<Grid<List<Simplex>>> simplexContainer;
+    Int2ObjectOpenHashMap<Grid<List<Simplex>>> simplexContainer;
     List<List<Double>> filtrationValues;
     IntTuple gridSize;
+    BinomialCoeffTable binomialCoeffTable;
+    Integer n_vertices;
 
-    public SimplexStorageStructure(List<List<Double>> filtrationValues, IntTuple gridSize){
-        simplexContainer = new TIntObjectHashMap<>();
+    public SimplexStorageStructure(List<List<Double>> filtrationValues, IntTuple gridSize, Integer max_dimesion, Integer n_vertices){
+        simplexContainer = new Int2ObjectOpenHashMap<>();
         this.filtrationValues = filtrationValues;
         this.gridSize = gridSize;
+        this.n_vertices = n_vertices;
+        this.binomialCoeffTable = new BinomialCoeffTable(n_vertices, max_dimesion);
     }
 
     public List<List<Double>> getFiltrationValues() { return filtrationValues; }
@@ -78,7 +83,12 @@ public class SimplexStorageStructure {
                 simplices.addAll(local_simplices);
             }
         }
+        Collections.sort(simplices);
         return simplices;
+    }
+
+    public int getNumberOfVertices(){
+        return n_vertices;
     }
 
     /**
@@ -98,11 +108,13 @@ public class SimplexStorageStructure {
             }
             filtrationValues.add(values);
         }
-        IntTuple gridSize = new IntTuple(filtrationValues.size());
+        IntTuple gridSize = IntTuple.zeros(filtrationValues.size());
         for(int i=0;i<filtrationValues.size();i++){
             gridSize.set(i, filtrationValues.get(i).size()-1);
         }
-        SimplexStorageStructure simplexStorageStructure = new SimplexStorageStructure(filtrationValues, gridSize);
+        Integer n_vertices = Integer.parseInt(reader.readLine());
+        Integer maxDimension = Integer.parseInt(reader.readLine());
+        SimplexStorageStructure simplexStorageStructure = new SimplexStorageStructure(filtrationValues, gridSize, maxDimension, n_vertices);
         while((line = reader.readLine()) != null){
 
             //Parse simplex
@@ -116,7 +128,7 @@ public class SimplexStorageStructure {
             for(String v : part[0].trim().split(" ")){
                 vertices.add(Integer.parseInt(v));
             }
-            Collections.sort(vertices);
+            long index = simplexStorageStructure.binomialCoeffTable.computeIndex(vertices);
 
             //Parse filtration index
             List<Integer> filtrationIndex = new ArrayList<>();
@@ -124,14 +136,14 @@ public class SimplexStorageStructure {
                 filtrationIndex.add(Integer.parseInt(x));
             }
 
-            simplexStorageStructure.addElement(new Simplex(vertices), new IntTuple(filtrationIndex));
+            simplexStorageStructure.addElement(new Simplex(index, vertices.size()-1), new IntTuple(filtrationIndex));
         }
         return simplexStorageStructure;
     }
 
     @Override
     public String toString(){
-        IntTuple size = new IntTuple(filtrationValues.size());
+        IntTuple size = IntTuple.zeros(filtrationValues.size());
         for(int i=0;i<filtrationValues.size();i++){
             size.set(i, filtrationValues.get(i).size());
         }

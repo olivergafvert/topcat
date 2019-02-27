@@ -22,21 +22,22 @@ package topcat.mains;
 
 import topcat.persistence.PersistenceModule;
 import topcat.persistence.PersistenceModuleCollection;
-import topcat.persistence.fcf.FeatureCountingFunction;
-import topcat.persistence.noise.DomainNoise;
-import topcat.persistence.noise.Noise;
-import topcat.persistence.noise.StandardNoise;
+import topcat.persistence.contours.ExponentialContour;
+import topcat.persistence.contours.PersistenceContour;
+import topcat.persistence.contours.StandardContour;
+import topcat.persistence.stablerank.StableRankFunction;
 import topcat.persistence.simplex.SimplexStorageStructure;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
-public class ComputeFCF {
+public class ComputeStableRank {
 
     /**
-     * Computes the feature counting function of a given type of noise for a given simplicial complex.
+     * Computes the stable rank function of a given persistence contour for a given simplicial complex.
      *
-     * Usage: simplex_file maxDimension noise_type [domain or standard]
+     * Usage: simplex_file maxDimension contour [domain or standard]
      *
      * The simplex file should be in the following format:
      * number of filtrationdirections
@@ -57,19 +58,20 @@ public class ComputeFCF {
             return;
         }
         int maxDimension = Integer.parseInt(args[1]);
-        PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(simplexStorageStructure, simplexStorageStructure.getFiltrationValues(), maxDimension);
+        List<List<Double>> filtrationValues = simplexStorageStructure.getFiltrationValues();
+        PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(simplexStorageStructure, filtrationValues, maxDimension);
 
-        Noise noise;
-        if(args[2].equals("domain")){
-            noise = new DomainNoise();
+        PersistenceContour persistenceContour;
+        if(args[2].equals("exponentaial")){
+            persistenceContour = new ExponentialContour(filtrationValues);
         }else{
-            noise = new StandardNoise();
+            persistenceContour = new StandardContour(filtrationValues);
         }
 
         for(int i=0;i<persistenceModules.getMaxDimension();i++){
             PersistenceModule persistenceModule = persistenceModules.get(i);
-            FeatureCountingFunction featureCountingFunction = noise.computeFCF(persistenceModule.getFunctor(), persistenceModule.getFiltrationValues());
-            System.out.println(i+": "+ featureCountingFunction);
+            StableRankFunction stableRankFunction = persistenceModule.computeStableRank(filtrationValues.get(0), persistenceContour);
+            System.out.println(i+": "+ stableRankFunction);
         }
     }
 

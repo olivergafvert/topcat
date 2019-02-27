@@ -26,6 +26,8 @@ import topcat.matrix.BMatrix;
 import topcat.matrix.BVector;
 import topcat.matrix.exception.NoSolutionException;
 import topcat.matrix.exception.WrongDimensionException;
+import topcat.persistence.contours.PersistenceContour;
+import topcat.persistence.homology.HomologyUtil;
 import topcat.util.*;
 
 import java.util.*;
@@ -37,7 +39,7 @@ public class Functor {
     private static final Logger log = LoggerFactory.getLogger(Functor.class);
 
     private List<Grid<BMatrix>> maps; //The maps of the functor
-    private IntTuple size; //The size of the grid of the multifiltration on which the functor is defined
+    protected IntTuple size; //The size of the grid of the multifiltration on which the functor is defined
 
     public Functor(IntTuple size){
         this.size = size;
@@ -76,7 +78,7 @@ public class Functor {
      * @return
      */
     private IntTuple parseTuple(IntTuple v){
-        IntTuple w = new IntTuple(v.length());
+        IntTuple w = IntTuple.zeros(v.length());
         for(int i=0;i<v.length();i++){
             w.set(i, v.get(i) <= size.get(i) ? v.get(i) : size.get(i));
         }
@@ -101,6 +103,10 @@ public class Functor {
 
     //Public methods
 
+    public int getDimension(){
+        return this.size.length();
+    }
+
     /**
      * Computes the shift of the generators of F by epsilon.
      * @param f_generators
@@ -108,12 +114,15 @@ public class Functor {
      * @return
      */
     public List<Generator> generatorShift(List<Generator> f_generators,
-                                           IntTuple epsilon){
+                                           Double epsilon, PersistenceContour contour){
         List<Generator> generators = new ArrayList<>(); //Stores the shifted generators
 
         //First shift all f-generators by epsilon
         for(Generator f : f_generators){
-            IntTuple pos = f.position.plus(epsilon);
+            IntTuple pos = contour.shift(f.position, epsilon);
+            if(getMap(f.position, pos)==null){
+                int ee= 0;
+            }
             BVector g_v = getMap(f.position, pos).mult(f.v);
             if(g_v.getNumberOfNonZeroElements() > 0) {
                 generators.add(new Generator(pos, g_v));
@@ -254,6 +263,54 @@ public class Functor {
     }
 
     /**
+     * Computes the projective resolution of the functor. (OBS Currently only computes up to P_1)
+     * TODO: Implement computation of P_2 and higher.
+     * @return
+     */
+    public List<FreeFunctor> projectiveResolution(){
+        List<Generator> generators = getGenerators();
+        List<FreeFunctor> proj = new ArrayList<>();
+        proj.add(new FreeFunctor(generators, size));
+        for(int d=0;d<getDimension();d++) {
+            Nat kernel = new Nat(size);
+            List<Functor.Generator> kernelgens = new ArrayList<>();
+            for (IntTuple v : GridIterator.getSequence(getSize())) {
+                List<Functor.Generator> gens = Generator.getGensLEQThan(generators, v);
+                BMatrix A = new BMatrix(gens.size(), getDimension(v));
+                for (int i = 0; i < gens.size(); i++) {
+                    A.setRow(i, new BVector(getMap(gens.get(i).position, v).mult(gens.get(i).v)));
+                }
+                Pair<BMatrix, BMatrix> kerim = BMatrix.reduction(A.transpose());
+                if(kerim._1().rows == 0) continue;
+                kernel.setMap(v, kerim._1().transpose());
+                List<IntTuple> basis = IntTuple.getStandardBasisSequence(v.length());
+                List<Generator> ugens = Generator.getGensLEQThan(generators, v.minus(basis.get(0)));
+                BMatrix I = HomologyUtil.computeInclusionMap(ugens, gens).mult(kernel.getMap(v.minus(basis.get(0))));
+                for(int i=1;i<basis.size();i++){
+                    ugens = Generator.getGensLEQThan(generators, v.minus(basis.get(i)));
+                    I = BMatrix.concat(I, HomologyUtil.computeInclusionMap(ugens, gens).mult(kernel.getMap(v.minus(basis.get(i)))));
+                }
+                if(I==null){
+                    for (int i = 0; i < kerim._1().rows; i++) {
+                        kernelgens.add(new Generator(new IntTuple(v), kerim._1().getRow(i)));
+                    }
+                }
+                else if(BMatrix.rank(I) < kernel.getMap(v).cols){
+                    kerim = BMatrix.reduction(I);
+                    BMatrix Hbasis = BMatrix.getBasis(BMatrix.vconcat(kerim._2(), kernel.getMap(v).transpose())).subMatrix(kerim._2().rows, -1, 0, -1);
+                    for (int i = 0; i < Hbasis.rows; i++) {
+                        kernelgens.add(new Generator(new IntTuple(v), Hbasis.getRow(i)));
+                    }
+                }
+            }
+            proj.add(new FreeFunctor(kernelgens, size));
+            generators = new ArrayList<>();
+            Collections.copy(kernelgens, generators);
+        }
+        return proj;
+    }
+
+    /**
      * Picks out the functor described by the first dims(v) coordinates at position v, for all v in N^r.
      * @param dims
      * @return
@@ -312,6 +369,9 @@ public class Functor {
                     IntTuple w = v.plus(basis.get(i));
                     IntTuple wp = v.plus(basis.get(j));
                     IntTuple z = w.plus(basis.get(j));
+                    if(!F.getMap(w, z).mult(F.getMap(v, w)).equals(F.getMap(wp, z).mult(F.getMap(v, wp)))){
+                        System.out.println(w);
+                    }
                     assert(F.getMap(w, z).mult(F.getMap(v, w)).equals(F.getMap(wp, z).mult(F.getMap(v, wp))));
                 }
             }
@@ -321,13 +381,23 @@ public class Functor {
     /**
      * Describes a generator of the functor.
      */
-    public class Generator{
+    public static class Generator{
         public IntTuple position;
         public BVector v;
+        private int hash;
 
         public Generator(IntTuple position, BVector v) {
             this.position = position;
             this.v = v;
+            this.hash = position.hashCode()+v.hashCode();
+        }
+
+        public static List<Generator> getGensLEQThan(List<Generator> generators, IntTuple u){
+            List<Generator> gens = new ArrayList<>();
+            for(int i=0;i<generators.size();i++){
+                if(generators.get(i).position.leq(u)) gens.add(generators.get(i));
+            }
+            return gens;
         }
 
         @Override
@@ -336,6 +406,20 @@ public class Functor {
                     .append("Position: ").append(position).append('\n')
                     .append(v)
                     .toString();
+        }
+
+        @Override
+        public boolean equals(Object o){
+            if(o == null || !o.getClass().equals(this.getClass())){
+                return false;
+            }
+            Generator generator = (Generator) o;
+            return this.position.equals(generator.position) && this.v.equals(generator.v);
+        }
+
+        @Override
+        public int hashCode(){
+            return hash;
         }
     }
 

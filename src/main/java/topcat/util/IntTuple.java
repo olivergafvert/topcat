@@ -33,13 +33,6 @@ public class IntTuple extends Tuple<Integer>{
         super(tuple);
     }
 
-    public IntTuple(int dim){
-        super(new ArrayList<Integer>());
-        for(int i=0;i<dim;i++){
-            this.tuple.add(0);
-        }
-    }
-
     public IntTuple(IntTuple intTuple){
         super(new ArrayList<>(intTuple.getElements()));
     }
@@ -65,7 +58,7 @@ public class IntTuple extends Tuple<Integer>{
      * @return
      */
     public IntTuple plus(IntTuple v){
-        IntTuple w = new IntTuple(v.length());
+        IntTuple w = IntTuple.zeros(v.length());
         for(int i=0;i<v.length();i++){
             w.set(i, v.get(i)+get(i));
         }
@@ -78,7 +71,7 @@ public class IntTuple extends Tuple<Integer>{
      * @return
      */
     public IntTuple minus(IntTuple v){
-        IntTuple w = new IntTuple(v.length());
+        IntTuple w = IntTuple.zeros(v.length());
         for(int i=0;i<v.length();i++){
             w.set(i, get(i)-v.get(i));
         }
@@ -153,7 +146,7 @@ public class IntTuple extends Tuple<Integer>{
      * @return
      */
     public static IntTuple join(IntTuple v, IntTuple w){
-        IntTuple z = new IntTuple(v.length());
+        IntTuple z = IntTuple.zeros(v.length());
         for(int i=0;i<z.length();i++) z.set(i, v.get(i)<w.get(i) ? w.get(i) : v.get(i));
         return z;
     }
@@ -165,7 +158,7 @@ public class IntTuple extends Tuple<Integer>{
      * @return
      */
     public static IntTuple meet(IntTuple v, IntTuple w){
-        IntTuple z = new IntTuple(v.length());
+        IntTuple z = IntTuple.zeros(v.length());
         for(int i=0;i<z.length();i++) z.set(i, v.get(i)<w.get(i) ? v.get(i) : w.get(i));
         return z;
     }
@@ -188,7 +181,7 @@ public class IntTuple extends Tuple<Integer>{
      * @return
      */
     public static IntTuple getStandardBasisElement(int length, int i){
-        IntTuple e = new IntTuple(length);
+        IntTuple e = IntTuple.zeros(length);
         e.set(i, 1);
         return e;
     }
@@ -201,7 +194,7 @@ public class IntTuple extends Tuple<Integer>{
     public static List<IntTuple> getStandardBasisSequence(int d){
         List<IntTuple> sequence = new ArrayList<>();
         for(int i=0;i<d;i++){
-            IntTuple tuple = new IntTuple(d);
+            IntTuple tuple = IntTuple.zeros(d);
             tuple.set(i, 1);
             sequence.add(tuple);
         }
@@ -214,11 +207,62 @@ public class IntTuple extends Tuple<Integer>{
      * @return
      */
     public static IntTuple ones(int length){
-        IntTuple e = new IntTuple(length);
-        for(int i=0;i<e.length();i++){
-            e.set(i, 1);
-        }
-        return e;
+        return uniform(length, 1);
     }
 
+    /**
+     * Returns an tuple of length 'length' containing 0's.
+     * @param length
+     * @return
+     */
+    public static IntTuple zeros(int length){
+        return uniform(length, 0);
+    }
+
+    /**
+     * Returns an tuple of length 'length' with 'value' in each position.
+     * @param length
+     * @return
+     */
+    public static IntTuple uniform(int length, int value){
+        List<Integer> e = new ArrayList<>();
+        for(int i=0;i< length;i++){
+            e.add(value);
+        }
+        return new IntTuple(e);
+    }
+
+
+    private static void choose_helper(IntTuple v, int level, int index, List<IntTuple> vs){
+        if(level == v.length()-index){
+            for(int i=index;i<v.length();i++){
+                v.set(i, 1);
+            }
+            vs.add(new IntTuple(v));
+        }
+        else if(level==0){
+            for(int i=index;i<v.length();i++){
+                v.set(i, 0);
+            }
+            vs.add(new IntTuple(v));
+        }
+        else {
+            v.set(index, 1);
+            choose_helper(v, level-1, index+1, vs);
+            v.set(index, 0);
+            choose_helper(v, level, index+1, vs);
+        }
+    }
+
+    /**
+     * Returns a list of binary vectors with all combinations of tuples with k ones.
+     * @param n
+     * @param k
+     * @return
+     */
+    public static List<IntTuple> choose(int n, int k){
+        List<IntTuple> vs = new ArrayList<>();
+        choose_helper(IntTuple.zeros(n), k, 0, vs);
+        return vs;
+    }
 }

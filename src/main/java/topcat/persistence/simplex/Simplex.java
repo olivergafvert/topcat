@@ -20,70 +20,27 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package topcat.persistence.simplex;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import topcat.util.BinomialCoeffTable;
 
 /**
- * Represents an n-simplex for some n >= 0.
+ * Represents an n-simplex for some n >= 0. The implementation is inspired by the combinatorial number system
+ * used in Ripser [1].
+ *
+ * [1] - http://ripser.org
  */
 public class Simplex implements Comparable<Simplex>{
+    private final long index;
     private final int dimension;
-    private final List<Integer> vertices;
-    private final int hash;
 
-    public Simplex(List<Integer> vertices){
-        this.dimension = vertices.size()-1;
-        this.vertices = vertices;
-        this.hash = vertices.hashCode();
+    public Simplex(long index, int dimension){
+        this.index = index;
+        this.dimension = dimension;
     }
 
-    public Simplex(Integer... vertices){
-        this(Arrays.asList(vertices));
-    }
-
-    public Simplex(int[] vertices_arr){
-        this.vertices = new ArrayList<>(vertices_arr.length);
-        for(int v : vertices_arr){
-            this.vertices.add(v);
-        }
-        this.dimension = this.vertices.size()-1;
-        this.hash = vertices.hashCode();
-    }
+    public long getIndex(){ return index; }
 
     public int getDimension() {
         return dimension;
-    }
-
-    public List<Integer> getVertices() {
-        return vertices;
-    }
-
-    public int getHash(){
-        return hash;
-    }
-
-    /**
-     * Returns a list of the boundary simplices (i.e (n-1)-dimensional faces).
-     * @return
-     */
-    public List<Simplex> getBoundaryList(){
-        List<Simplex> simplices = new ArrayList<>(dimension*dimension);
-        for(int i=0;i<vertices.size();i++){
-            List<Integer> boundaryVertices = new ArrayList<>(dimension-1);
-            for(int j=0;j<vertices.size();j++){
-                if(i!=j){
-                    boundaryVertices.add(vertices.get(j));
-                }
-            }
-            simplices.add(new Simplex(boundaryVertices));
-        }
-        return simplices;
-    }
-
-    public String toString(){
-        StringBuilder sb = new StringBuilder();
-        return sb.append(dimension).append("-Simplex: vertices: ").append(vertices).toString();
     }
 
     @Override
@@ -92,30 +49,61 @@ public class Simplex implements Comparable<Simplex>{
             return false;
         }
         Simplex simplex = (Simplex) o;
-        if(this.dimension != simplex.dimension){
-            return false;
-        }
-        if(this.hash != simplex.hash){
-            return false;
-        }
-        if(simplex.vertices.equals(this.vertices)){
-            return true;
-        }
-        return false;
+        return this.dimension == simplex.dimension && this.index == simplex.index;
     }
 
     @Override
     public int hashCode(){
-        return hash;
+        return (int)index;
     }
 
     @Override
     public int compareTo(Simplex o) {
-        for(int i=0;i<vertices.size();i++) {
-            if(!vertices.get(i).equals(o.vertices.get(i))) {
-                return vertices.get(i).compareTo(o.vertices.get(i));
+        if(this.index < o.index) return -1;
+        if(this.index > o.index) return 1;
+        return 0;
+    }
+
+    /**
+     * Enumerates the vertices of a simplex of dimension 'dim' with index 'idx' given a total number
+     * of vertices 'v'.
+     * @param idx - index of simplex
+     * @param dim - dimension of simplex
+     * @param v - total number of vertices
+     * @return an int array with the vertices of the simplex.
+     */
+    public static int[] get_simplex_vertices(long idx, int dim, int v, BinomialCoeffTable binomial_coeff){
+        int[] vertices = new int[dim+1];
+        for (int k = dim + 1; k > 0; --k) {
+            v = get_next_vertex(v, idx, k, binomial_coeff);
+            vertices[k-1] = v;
+            idx -= binomial_coeff.get(v, k);
+        }
+        return vertices;
+    }
+
+    /**
+     * Performs a binary search to find the largest vertex in a (k-1)-simplex.
+     * @param v - total number of vertices
+     * @param idx - the index of the (k-1)-simplex
+     * @param k
+     * @return
+     */
+    static int get_next_vertex(int v, long idx, int k, BinomialCoeffTable binomial_coeff) {
+        if (binomial_coeff.get(v, k) > idx) {
+            int count = v;
+            while (count > 0) {
+                int i = v;
+                int step = count >> 1;
+                i -= step;
+                if (binomial_coeff.get(i, k) > idx) {
+                    v = --i;
+                    count -= step + 1;
+                } else
+                    count = step;
             }
         }
-        return 0;
+        assert(binomial_coeff.get(v, k) <= idx && binomial_coeff.get(v + 1, k) > idx);
+        return v;
     }
 }

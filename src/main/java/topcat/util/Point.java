@@ -20,11 +20,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package topcat.util;
 
-import gnu.trove.set.hash.TIntHashSet;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import topcat.matrix.distancematrix.DistanceMatrix;
 import topcat.persistence.PersistenceModuleCollection;
-import topcat.persistence.noise.Noise;
-import topcat.persistence.noise.StandardNoise;
+import topcat.persistence.contours.PersistenceContour;
+import topcat.persistence.contours.StandardContour;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -71,7 +71,7 @@ public class Point{
      */
     public static List<Point> samplePoints(List<Point> points, int samples){
         List<Point> sampledPoints = new ArrayList<>();
-        TIntHashSet chosen = new TIntHashSet();
+        IntOpenHashSet chosen = new IntOpenHashSet();
         Random r = new Random();
         for(int i=0;i<samples;i++){
             int next = r.nextInt(points.size());
@@ -150,7 +150,7 @@ public class Point{
         int maxDimension = 3; //Compute 0th and 1 homology.
         PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(distanceMatrices, filtrationValues, maxDimension);
 
-        Noise noise = new StandardNoise();
-        noise.computeFCF(persistenceModules.get(2).getFunctor(), persistenceModules.get(1).getFiltrationValues());
+        PersistenceContour persistenceContour = new StandardContour(filtrationValues);
+        persistenceModules.get(2).computeStableRank(filtrationValues.get(0), persistenceContour);
     }
 }

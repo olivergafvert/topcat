@@ -20,8 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package topcat.matrix.distancematrix;
 
-import gnu.trove.map.hash.TIntDoubleHashMap;
-import gnu.trove.map.hash.TIntObjectHashMap;
+import it.unimi.dsi.fastutil.ints.Int2DoubleOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 
 import java.util.List;
 
@@ -29,7 +29,7 @@ import java.util.List;
  * Created by oliver on 2016-04-05.
  */
 public class SparseDistanceMatrix extends DistanceMatrix {
-    private TIntObjectHashMap<TIntDoubleHashMap> valueMap = new TIntObjectHashMap<>();
+    private Int2ObjectOpenHashMap<Int2DoubleOpenHashMap> valueMap = new Int2ObjectOpenHashMap<>();
 
     public SparseDistanceMatrix(int rows, int cols) {
         super(rows, cols);
@@ -37,7 +37,7 @@ public class SparseDistanceMatrix extends DistanceMatrix {
 
     @Override
     public double get(int i, int j){
-        if(valueMap.containsKey(i) && valueMap.get(i).contains(j)){
+        if(valueMap.containsKey(i) && valueMap.get(i).containsKey(j)){
             return valueMap.get(i).get(j);
         }else{
             return Double.MAX_VALUE;
@@ -47,7 +47,7 @@ public class SparseDistanceMatrix extends DistanceMatrix {
     @Override
     public void set(int i, int j, double val){
         if(!valueMap.containsKey(i)){
-            valueMap.put(i, new TIntDoubleHashMap());
+            valueMap.put(i, new Int2DoubleOpenHashMap());
         }
         valueMap.get(i).put(j, val);
     }
@@ -70,13 +70,13 @@ public class SparseDistanceMatrix extends DistanceMatrix {
 
     @Override
     public int[] getNonZeroRows() {
-        return valueMap.keys();
+        return valueMap.keySet().toIntArray();
     }
 
     @Override
     public int[] getNonZeroRowEntries(int i) {
         if(valueMap.containsKey(i)){
-            return valueMap.get(i).keys();
+            return valueMap.get(i).keySet().toIntArray();
         }
         return new int[0];
     }

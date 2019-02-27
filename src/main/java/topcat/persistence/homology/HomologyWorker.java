@@ -1,6 +1,6 @@
 /*
 Topcat - a multidimensional persistent homology library.
-Copyright (C) 2016 Oliver Gäfvert
+Copyright (C) 2019 Oliver Gäfvert
 
 This file is part of Topcat.
 
@@ -20,154 +20,280 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package topcat.persistence.homology;
 
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import topcat.matrix.BMatrix;
 import topcat.matrix.BVector;
-import topcat.matrix.exception.NoSolutionException;
 import topcat.persistence.simplex.Simplex;
 import topcat.persistence.simplex.SimplexStorageStructure;
+import topcat.util.BinomialCoeffTable;
 import topcat.util.IntTuple;
 import topcat.util.Pair;
+import topcat.persistence.simplex.SimplexCoboundaryEnumerator;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 /**
- * Created by oliver on 2016-07-28.
+ * Worker node in the parallelized computation of the homology.
  */
-class HomologyWorker implements Runnable {
-    public static Logger log = LoggerFactory.getLogger(HomologyWorker.class);
-    int maxDimension;
-    IntTuple v;
-    List<List<Simplex>> chain = new ArrayList<>();
-    int[] homologyDimension;
-    BMatrix[] naturalTransformation;
-    BMatrix[] naturalTransformation_inverse;
+public class HomologyWorker implements Runnable{
+        public static Logger log = LoggerFactory.getLogger(topcat.persistence.homology.HomologyWorker.class);
+        int maxDimension;
+        IntTuple v;
+        List<List<Simplex>> chain = new ArrayList<>();
+        int[] homologyDimension;
+        BMatrix[] naturalTransformation;
+        BMatrix[] naturalTransformation_inverse;
+        SimplexStorageStructure simplexStorageStructure;
+        BinomialCoeffTable binomialCoeffTable;
 
+    HomologyWorker(SimplexStorageStructure simplexStorageStructure, IntTuple v, int maxDimension) {
+            this.maxDimension = maxDimension;
+            this.v = v;
+            this.homologyDimension = new int[maxDimension];
+            this.naturalTransformation = new BMatrix[maxDimension];
+            this.naturalTransformation_inverse = new BMatrix[maxDimension];
+            this.simplexStorageStructure = simplexStorageStructure;
+            this.binomialCoeffTable = new BinomialCoeffTable(simplexStorageStructure.getNumberOfVertices(), maxDimension+2);
 
-    HomologyWorker(SimplexStorageStructure simplexStorageStructure, IntTuple v, int maxDimension){
-        this.maxDimension = maxDimension;
-        this.v = v;
-        this.homologyDimension = new int[maxDimension];
-        this.naturalTransformation = new BMatrix[maxDimension];
-        this.naturalTransformation_inverse = new BMatrix[maxDimension];
-
-        //For each index in the grid we compute the homology up to dimension 'maxdimension'
-        for (int k = 0; k <= maxDimension; k++) {
-            chain.add(simplexStorageStructure.getSimplicesLEQThan(k, v));
+            //For each index in the grid we compute the homology up to dimension 'maxdimension'
+            for (int k = 0; k <= maxDimension; k++) {
+                chain.add(simplexStorageStructure.getSimplicesLEQThan(k, v));
+            }
         }
-    }
 
     /**
-     * Computes the boundary matrix \partial_n: C_n \to C_n-1.
-     * @param lower the simplices in C_n-1
-     * @param current the simplices in C_n
+     * Adds the coboundary of 's' to the current column 'working_columns' and returns the largest index where the column
+     * is non-zero.
+     * @param s
+     * @param index_lookup
+     * @param working_coboundary
      * @return
      */
-    private BMatrix computeBoundaryMatrix(List<Simplex> lower, List<Simplex> current){
-        HashMap<Simplex, BVector> t_matrix = new HashMap<>();
-        for(int i=0;i<lower.size();i++){
-            t_matrix.put(lower.get(i), new BVector(current.size()));
-        }
-        for(int i=0;i<current.size();i++){
-            Simplex s = current.get(i);
-            for(Simplex ss : s.getBoundaryList()){
-                t_matrix.get(ss).set(i, true);
+        public long add_coboundary_and_get_pivot(Simplex s, LongOpenHashSet index_lookup, PriorityQueue<Long> working_coboundary){
+            SimplexCoboundaryEnumerator enumerator = new SimplexCoboundaryEnumerator(s, simplexStorageStructure.getNumberOfVertices(), binomialCoeffTable);
+            while (enumerator.hasNext()) {
+                long index = enumerator.next();
+                if (index_lookup.contains(index)) {
+                    working_coboundary.add(index);
+                }
             }
+            return get_pivot(working_coboundary);
         }
-        BMatrix boundaryMatrix = new BMatrix(lower.size(), current.size());
-        for(int i=0;i<lower.size();i++){
-            boundaryMatrix.setRow(i, t_matrix.get(lower.get(i)));
-        }
-        return boundaryMatrix;
-    }
 
     /**
-     * Computes a basis for Z that contains B as a sub-basis.
-     * @param Z
-     * @param B
+     * Helper function to @get_pivot.
+     * @param column
      * @return
-     * @throws NoSolutionException
      */
-    private static Pair<BMatrix, BMatrix> computeNormalizedBasis(BMatrix Z, BMatrix B) throws NoSolutionException {
-        BMatrix Hbasis = BMatrix.getBasis(BMatrix.concat(B.transpose(), Z.transpose()).transpose()).subMatrix(B.rows, -1, 0, -1);
-        return new Pair<>(Hbasis, B);
+    private long pop_pivot(PriorityQueue<Long> column){
+            if(column.isEmpty()) return -1;
+            else{
+                long pivot = column.poll();
+                while(!column.isEmpty() && column.peek() == pivot){
+                    column.poll();
+                    if(column.isEmpty()) return -1;
+                    else{
+                        pivot = column.poll();
+                    }
+                }
+                return pivot;
+            }
+        }
+
+    /**
+     * Returns the largest index of the column which is non-zero.
+     * @param column
+     * @return
+     */
+    public long get_pivot(PriorityQueue<Long> column){
+            long result = pop_pivot(column);
+            if(result != -1) column.add(result);
+            return result;
+        }
+
+    /**
+     * Performs an implicit matrix reduction of the coboundary matrix.
+     * @param columns_to_reduce - a list of the non-zero columns of the coboundary matrix.
+     * @param pivot_column_index
+     * @param index_lookup - hash set containing the indexes of the non-zero rows in the coboundary matrix.
+     * @return
+     */
+    public BMatrix reduce_coboundary_matrix(List<Simplex> columns_to_reduce, Long2IntOpenHashMap pivot_column_index, LongOpenHashSet index_lookup){
+            BMatrix reductionMatrix = BMatrix.identity(columns_to_reduce.size());
+            for(int index_column_to_reduce = 0; index_column_to_reduce<columns_to_reduce.size();index_column_to_reduce++) {
+                PriorityQueue<Long> working_coboundary= new PriorityQueue<>(10, Collections.<Long>reverseOrder());
+                int index_column_to_add = index_column_to_reduce;
+                while(true) {
+                    long pivot = add_coboundary_and_get_pivot(columns_to_reduce.get(index_column_to_add), index_lookup, working_coboundary);
+                    if (pivot != -1) {
+                        if (pivot_column_index.containsKey(pivot)) {
+                            index_column_to_add = pivot_column_index.get(pivot);
+                            reductionMatrix.set(index_column_to_reduce, index_column_to_add, !reductionMatrix.get(index_column_to_reduce, index_column_to_add));
+                        } else {
+                            pivot_column_index.addTo(pivot, index_column_to_reduce);
+                            break;
+                        }
+                    }else{
+                        break;
+                    }
+                }
+            }
+            return reductionMatrix;
+        }
+
+    /**
+     * Computes a set of pivots of the matrix given by the list of columns 'columns_to_reduce'.
+     * @param columns_to_reduce - a list of columns of the matrix.
+     * @param pivot_column_index
+     * @return A list of pivot and column indices.
+     */
+        public List<Pair<Long, Integer>> computePivots(List<List<Long>> columns_to_reduce, Long2IntOpenHashMap pivot_column_index){
+            List<Pair<Long, Integer>> pivot_columns = new ArrayList<>();
+            for(Integer index_column_to_reduce = 0; index_column_to_reduce<columns_to_reduce.size();index_column_to_reduce++) {
+                PriorityQueue<Long> working_column= new PriorityQueue<>(10, Collections.<Long>reverseOrder());
+                working_column.addAll(columns_to_reduce.get(index_column_to_reduce));
+                long pivot;
+                while((pivot=get_pivot(working_column)) != -1) {
+                    if(pivot_column_index.containsKey(pivot)){
+                        working_column.addAll(columns_to_reduce.get(pivot_column_index.get(pivot)));
+                    }else{
+                        pivot_column_index.addTo(pivot, index_column_to_reduce);
+                        pivot_columns.add(new Pair<Long, Integer>(pivot, index_column_to_reduce));
+                        break;
+                    }
+                }
+            }
+            return pivot_columns;
+        }
+
+
+    /**
+     * Computes the matrix inverse of the matrix whose columns are given by the list 'columns_to_reduce'.
+     * @param columns_to_reduce
+     * @return the matrix inverse.
+     */
+    public BMatrix inverse(List<List<Long>> columns_to_reduce){
+        Long2IntOpenHashMap pivot_column_index = new Long2IntOpenHashMap();
+        computePivots(columns_to_reduce, pivot_column_index);
+        assert pivot_column_index.size() == columns_to_reduce.size();
+        BMatrix reductionMatrix = new BMatrix(columns_to_reduce.size(), columns_to_reduce.size());//BMatrix.identity(columns_to_reduce.size());
+        for(int i = 0; i<columns_to_reduce.size();i++) {
+            Integer index_column_to_reduce = pivot_column_index.get((long)i);
+            PriorityQueue<Long> working_column= new PriorityQueue<>(10, Collections.<Long>reverseOrder());
+            working_column.addAll(columns_to_reduce.get(index_column_to_reduce));
+            reductionMatrix.set(index_column_to_reduce, i, true);
+            long pivot;
+            while((pivot=get_pivot(working_column)) != -1) {
+                if(pivot_column_index.get(pivot) == index_column_to_reduce){
+                    pop_pivot(working_column);
+                }
+                else{
+                    working_column.addAll(columns_to_reduce.get(pivot_column_index.get(pivot)));
+                    reductionMatrix.set(pivot_column_index.get(pivot), i, !reductionMatrix.get(pivot_column_index.get(pivot), i));
+                }
+            }
+        }
+        return reductionMatrix;
     }
 
     /**
-     * Computes a basis for the homology in each position of the chain complex
-     *   C_n -> C_n-1 -> ... -> C_1 -> C_0
-     * where C_i is given by the simplices at position i in the list 'chain'.
-     * @param chain - a list of lists of simplices describing a chain complex.
-     * @return - a basis for the homology in each position in the chain complex.
+     * Computes a basis for the homology in each dimension of the chain complex given by 'chain'.
+     * @param chain
      */
-    private List<BMatrix> computeHomologyBasis(List<List<Simplex>> chain){
-        BMatrix[] Z = new BMatrix[maxDimension]; //The cycle subspaces
-        BMatrix[] B = new BMatrix[maxDimension]; //The boundary subspaces
-        int[] dims = new int[maxDimension];
-
-        for (int k = 1; k <= maxDimension; k++) {
-            //The chain of the lower dimension
-            List<Simplex> lower = chain.get(k - 1);
-            dims[k - 1] = lower.size();
-
-            //The chain of the current dimension
-            List<Simplex> current = chain.get(k);
-
-            //Compute the boundary matrix
-            BMatrix boundaryMatrix = computeBoundaryMatrix(lower, current);
-            if (boundaryMatrix != null) {
-                Pair<BMatrix, BMatrix> basis = BMatrix.reduction(boundaryMatrix);
-                Z[k - 1] = basis._1();
-                B[k - 1] = basis._2();
-            } else {
-                Z[k - 1] = null;
-                B[k - 1] = null;
-            }
+    protected void computeHomologyBasis(final List<List<Simplex>> chain) {
+        List<LongOpenHashSet> index_lookups = new ArrayList<>();
+        for (int i = 0; i < chain.size(); i++) {
+            List<Simplex> simplices = chain.get(i);
+            log.debug("Number of simplices of dim " + i + ": " + chain.get(i).size());
+            LongOpenHashSet index_lookup = new LongOpenHashSet();
+            for (Simplex s : simplices) index_lookup.add(s.getIndex());
+            index_lookups.add(index_lookup);
         }
-        //Compute the quotients Z/B = H;
-        List<BMatrix> homologyBasis = new ArrayList<>(); //The homology subspaces
-        if (B[0] == null || B[0].rows == 0) {
-            homologyBasis.add(BMatrix.identity(dims[0]));
-        } else {
-            BMatrix H = BMatrix.extendBasis(B[0]).subMatrix(B[0].rows, -1, 0, -1);
-            homologyBasis.add(H);
-        }
-        for (int k = 1; k < maxDimension; k++) {
-            if (B[k] == null || B[k].rows == 0) {
-                if (Z[k - 1] == null || Z[k - 1].rows == 0) {
-                    homologyBasis.add(new BMatrix(0, dims[k]));
-                } else {
-                    BMatrix H = Z[k - 1];
-                    homologyBasis.add(H);
-                }
-            } else {
-                if(Z[k-1].rows == B[k].rows){
-                    homologyBasis.add(new BMatrix(0, dims[k]));
-                }else {
-                    Pair<BMatrix, BMatrix> basis = computeNormalizedBasis(Z[k - 1], B[k]);
-                    BMatrix H = basis._1();
-                    homologyBasis.add(H);
+
+        List<List<Long>> image_basis = new ArrayList<>();
+
+        for (int dim = 0; dim < maxDimension; dim++) {
+            Long2IntOpenHashMap pivot_column_index = new Long2IntOpenHashMap();
+            BMatrix reduction_matrix = reduce_coboundary_matrix(chain.get(dim), pivot_column_index, index_lookups.get(dim + 1));
+
+            List<List<Long>> kernel_basis = new ArrayList<>();
+            for (int i = 0; i < chain.get(dim).size(); i++) {
+                if (!pivot_column_index.containsValue(i)) {
+                    BVector row = reduction_matrix.getRow(i);
+                    List<Long> column = new ArrayList<>();
+                    IntIterator iterator = row.getIndexSetIterator();
+                    while (iterator.hasNext()) {
+                        column.add(((Integer) iterator.nextInt()).longValue());
+                    }
+                    kernel_basis.add(column);
                 }
             }
+
+            int image_basis_size = image_basis.size();
+            image_basis.addAll(kernel_basis);
+            List<Pair<Long, Integer>> pivot_column = computePivots(image_basis, new Long2IntOpenHashMap());
+
+            List<List<Long>> homology_basis = new ArrayList<>();
+            for (int i = image_basis_size; i < pivot_column.size(); i++) {
+                homology_basis.add(image_basis.get(pivot_column.get(i)._2()));
+            }
+
+            assert homology_basis.size() == kernel_basis.size() - image_basis_size;
+
+            int homology_basis_size = homology_basis.size();
+            for (int i = 0; i < chain.get(dim).size(); i++) {
+                List<Long> column = new ArrayList<>();
+                column.add((long) i);
+                homology_basis.add(column);
+            }
+            pivot_column = computePivots(homology_basis, new Long2IntOpenHashMap());
+            List<BVector> extended_basis = new ArrayList<>();
+            List<List<Long>> e_basis = new ArrayList<>();
+            for (Pair<Long, Integer> pivot : pivot_column) {
+                BVector row = new BVector(chain.get(dim).size());
+                for (long pos : homology_basis.get(pivot._2()))
+                    row.set((int) pos, true);
+                extended_basis.add(row);
+                e_basis.add(homology_basis.get(pivot._2()));
+            }
+
+            BMatrix extendedBasis_inv = inverse(e_basis);
+            BMatrix extendedBasis = (new BMatrix(extended_basis)).transpose();
+
+            homologyDimension[dim] = homology_basis_size;
+            naturalTransformation[dim] = extendedBasis_inv;
+            naturalTransformation_inverse[dim] = extendedBasis;
+
+            Long2IntOpenHashMap index_column_lookup = new Long2IntOpenHashMap();
+            for (int i = 0; i < chain.get(dim + 1).size(); i++)
+                index_column_lookup.addTo(chain.get(dim + 1).get(i).getIndex(), i);
+
+            image_basis = new ArrayList<>();
+            int[] pivot_columns = pivot_column_index.values().toIntArray();
+            for (int i = 0; i < pivot_columns.length; i++) {
+                List<Long> column = new ArrayList<>();
+                Simplex s = chain.get(dim).get(pivot_columns[i]);
+                SimplexCoboundaryEnumerator enumerator = new SimplexCoboundaryEnumerator(s, simplexStorageStructure.getNumberOfVertices(), binomialCoeffTable);
+                while (enumerator.hasNext()) {
+                    long simplex = enumerator.next();
+                    if (index_column_lookup.containsKey(simplex)) {
+                        column.add(((long) index_column_lookup.get(simplex)));
+                    }
+                }
+                image_basis.add(column);
+            }
         }
-        return homologyBasis;
     }
 
     @Override
     public void run() {
         log.debug("Starting basis change computation of position: "+v);
-        List<BMatrix> homologyBasis = computeHomologyBasis(chain);
-        for(int k=0;k<maxDimension;k++){
-            BMatrix H = homologyBasis.get(k);
-            BMatrix M = BMatrix.extendBasis(H).transpose();
-            BMatrix Minv = M.inverse();
-            homologyDimension[k] = H.rows;
-            naturalTransformation[k] = Minv;
-            naturalTransformation_inverse[k] = M;
-        }
+        computeHomologyBasis(chain);
         log.debug("Finished basis change computation of position: "+v);
     }
 }
+

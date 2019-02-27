@@ -23,9 +23,9 @@ package topcat;
 import org.junit.Assert;
 import org.junit.Test;
 import topcat.persistence.PersistenceModuleCollection;
-import topcat.persistence.fcf.FeatureCountingFunction;
-import topcat.persistence.noise.Noise;
-import topcat.persistence.noise.StandardNoise;
+import topcat.persistence.contours.StandardContour;
+import topcat.persistence.stablerank.StableRankFunction;
+import topcat.persistence.contours.PersistenceContour;
 import topcat.matrix.distancematrix.DistanceMatrix;
 import topcat.util.Pair;
 import topcat.util.Point;
@@ -36,7 +36,7 @@ import java.util.List;
 /**
  * Created by oliver on 2016-02-29.
  */
-public class FeatureCountingFunctionTest {
+public class StableRankFunctionTest {
 
     @Test
     public void circleTest(){
@@ -59,22 +59,24 @@ public class FeatureCountingFunctionTest {
         int maxDimension = 2; //Compute 0th and 1 homology.
         PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(distanceMatrices, filtrationValues, maxDimension);
 
-        Noise noise = new StandardNoise();
-        FeatureCountingFunction barcode0 = new FeatureCountingFunction();
+        Assert.assertEquals(1, persistenceModules.getMaxDimension());
+
+        PersistenceContour persistenceContour = new StandardContour(filtrationValues);
+        StableRankFunction barcode0 = new StableRankFunction();
         for(int i=0;i<7;i++){
             barcode0.add(new Pair<>(radiusFiltrationValues.get(i), 10));
         }
         for(int i=7;i<10;i++){
             barcode0.add(new Pair<>(radiusFiltrationValues.get(i), 1));
         }
-        FeatureCountingFunction barcode0_test = noise.computeFCF(persistenceModules.get(0).getFunctor(), persistenceModules.get(0).getFiltrationValues());
+        StableRankFunction barcode0_test = persistenceModules.get(0).computeStableRank(persistenceModules.get(0).getFiltrationValues().get(0), persistenceContour);
         Assert.assertEquals(barcode0, barcode0_test);
 
-        FeatureCountingFunction barcode1 = new FeatureCountingFunction();
+        StableRankFunction barcode1 = new StableRankFunction();
         for(int i=0;i<10;i++){
             barcode1.add(new Pair<>(radiusFiltrationValues.get(i), 1));
         }
-        FeatureCountingFunction barcode1_test = noise.computeFCF(persistenceModules.get(1).getFunctor(), persistenceModules.get(1).getFiltrationValues());
+        StableRankFunction barcode1_test = persistenceModules.get(1).computeStableRank(persistenceModules.get(1).getFiltrationValues().get(0), persistenceContour);
         Assert.assertEquals(barcode1, barcode1_test);
     }
 }

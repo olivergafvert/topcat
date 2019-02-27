@@ -20,22 +20,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package topcat.persistence.simplex;
 
-
-import gnu.trove.iterator.TIntIterator;
-import gnu.trove.map.hash.TIntObjectHashMap;
-import gnu.trove.set.hash.TIntHashSet;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import topcat.persistence.PersistenceModuleCollection;
-import topcat.persistence.noise.Noise;
-import topcat.persistence.noise.StandardNoise;
+import topcat.persistence.contours.PersistenceContour;
+import topcat.persistence.contours.StandardContour;
 import topcat.matrix.distancematrix.DistanceMatrix;
+import topcat.util.BinomialCoeffTable;
 import topcat.util.IntTuple;
 import topcat.util.Point;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 /**
  * Utils for constructing a simplicial complex for distance matrices and filtration values.
@@ -50,19 +48,19 @@ public class SimplicialComplex {
      * @param maxDimension
      * @return
      */
-    public static List<Simplex> computeVietorisRipsComplex(List<DistanceMatrix> distanceMatrices, List<Double> filtrationValue, int maxDimension){
+    public static List<Simplex> computeVietorisRipsComplex(List<DistanceMatrix> distanceMatrices, List<Double> filtrationValue, int maxDimension, BinomialCoeffTable binom_coeff){
         DistanceMatrix distanceMatrix = distanceMatrices.get(0);
         List<Simplex> simplices = new ArrayList<>();
 
         //Add 0-dimensional simplices
         for(int i=0;i<distanceMatrix.rows;i++){
-            simplices.add(new Simplex(i));
+            simplices.add(new Simplex(i, 0));
         }
 
         //Initialize neighbor sets
-        TIntObjectHashMap<TIntHashSet> baseVertices = new TIntObjectHashMap<>();
+        Int2ObjectOpenHashMap<IntOpenHashSet> baseVertices = new Int2ObjectOpenHashMap<>();
         for(int i=0;i<distanceMatrix.rows;i++){
-            baseVertices.put(i, new TIntHashSet());
+            baseVertices.put(i, new IntOpenHashSet());
         }
 
         //Compute all edges that will appear in the multifiltration and add them as 1-simplices
@@ -70,7 +68,7 @@ public class SimplicialComplex {
 
         for(int r=0; r < nonzeros_rows.length; r++) {
             int i = nonzeros_rows[r];
-            TIntHashSet upperNeighbors = new TIntHashSet();
+            IntOpenHashSet upperNeighbors = new IntOpenHashSet();
             List<Simplex> local_simplices = new ArrayList<>();
             int[] nonzero_cols = distanceMatrix.getNonZeroRowEntries(i);
             for (int j : nonzero_cols) {
@@ -87,7 +85,7 @@ public class SimplicialComplex {
                 }
                 if (isLEQ) {
                     upperNeighbors.add(j);
-                    local_simplices.add(new Simplex(i, j));
+                    local_simplices.add(new Simplex(binom_coeff.computeIndex(i, j), 1));
                 }
             }
             baseVertices.put(i, upperNeighbors);
@@ -96,12 +94,12 @@ public class SimplicialComplex {
 
 
         //Add cofaces to each vertex inductively.
-        int[] keys = baseVertices.keys();
+        int[] keys = baseVertices.keySet().toIntArray();
         for(int k = 0; k < keys.length; k++){
             List<Simplex> local_simplices = new ArrayList<>();
             int[] vertices = new int[maxDimension + 1];
             vertices[0] = keys[k];
-            addCofaces(local_simplices, baseVertices.get(keys[k]), vertices, 0, baseVertices);
+            addCofaces(local_simplices, baseVertices.get(keys[k]), vertices, 0, baseVertices, binom_coeff);
             simplices.addAll(local_simplices);
         }
 
@@ -117,20 +115,20 @@ public class SimplicialComplex {
      * @param index
      * @param local_baseVertices
      */
-    private static void addCofaces(List<Simplex> simplices, TIntHashSet candidates, int[] vertices, int index, TIntObjectHashMap<TIntHashSet> local_baseVertices){
+    private static void addCofaces(List<Simplex> simplices, IntOpenHashSet candidates, int[] vertices, int index, Int2ObjectOpenHashMap<IntOpenHashSet> local_baseVertices, BinomialCoeffTable binomial_coeff){
         if(index >= 2 && index < vertices.length){
             List<Integer> t_vertices = new ArrayList<>(index+1);
             for(int i=0;i<index+1;i++){
                 t_vertices.add(vertices[i]);
             }
-            simplices.add(new Simplex(t_vertices));
+            simplices.add(new Simplex(binomial_coeff.computeIndex(t_vertices), t_vertices.size()-1));
         }
         if(index < vertices.length-1) {
-            TIntIterator iterator = candidates.iterator();
+            IntIterator iterator = candidates.iterator();
             while(iterator.hasNext()) {
-                vertices[index + 1] = iterator.next();
-                TIntHashSet lower_candidates = intersect(candidates, local_baseVertices.get(vertices[index+1]));
-                addCofaces(simplices, lower_candidates, vertices, index + 1, local_baseVertices);
+                vertices[index + 1] = iterator.nextInt();
+                IntOpenHashSet lower_candidates = intersect(candidates, local_baseVertices.get(vertices[index+1]));
+                addCofaces(simplices, lower_candidates, vertices, index + 1, local_baseVertices, binomial_coeff);
             }
         }
     }
@@ -141,17 +139,18 @@ public class SimplicialComplex {
      * @param h2
      * @return
      */
-    private static TIntHashSet intersect(TIntHashSet h1, TIntHashSet h2){
-        TIntHashSet intersection = new TIntHashSet();
-        TIntIterator iterator = h2.iterator();
+    private static IntOpenHashSet intersect(IntOpenHashSet h1, IntOpenHashSet h2){
+        IntOpenHashSet intersection = new IntOpenHashSet();
+        IntIterator iterator = h2.iterator();
         while(iterator.hasNext()){
-            int n = iterator.next();
+            int n = iterator.nextInt();
             if(h1.contains(n)){
                 intersection.add(n);
             }
         }
         return intersection;
     }
+
 
     /**
      * Computes a multifiltered simplicial complex.
@@ -166,53 +165,52 @@ public class SimplicialComplex {
         for(int i=0;i<filtrationValues.size();i++){
             maxFiltrationValues.add(filtrationValues.get(i).get(filtrationValues.get(i).size()-1));
         }
-        IntTuple gridSize = new IntTuple(filtrationValues.size());
+        IntTuple gridSize = IntTuple.zeros(filtrationValues.size());
         for(int i=0;i<filtrationValues.size();i++){
             gridSize.set(i, filtrationValues.get(i).size()-1);
         }
-        SimplexStorageStructure storageStructure = new SimplexStorageStructure(filtrationValues, gridSize);
+        SimplexStorageStructure storageStructure = new SimplexStorageStructure(filtrationValues, gridSize, maxDimension, distanceMatrices.get(0).cols);
         log.debug("Starting to compute simplicial complex...");
         //Compute the Vietoris-Rips complex for the maximal filtration value
-        List<Simplex> simplices = computeVietorisRipsComplex(distanceMatrices, maxFiltrationValues, maxDimension);
+        List<Simplex> simplices = computeVietorisRipsComplex(distanceMatrices, maxFiltrationValues, maxDimension, storageStructure.binomialCoeffTable);
         log.debug("Finished computing simplicial complex. (Computed "+simplices.size()+" number of simplices.)");
-        log.debug("Starting to compute filtrationIndices for each simplex...");
+        log.debug("Starting to compute filtrationValues for each simplex...");
         //Compute the filtration indices for each simplex.
         for(int i=0;i<simplices.size();i++){
-            List<Integer> filtrationIndexes = calcFiltrationIndexes(simplices.get(i), distanceMatrices, filtrationValues);
+            List<Integer> filtrationIndexes = calcFiltrationIndexes(simplices.get(i), distanceMatrices, filtrationValues, storageStructure.binomialCoeffTable);
             if (filtrationIndexes != null) {
                 storageStructure.addElement(simplices.get(i), new IntTuple(filtrationIndexes));
             }else{
                 log.error("Failed to add simplex "+simplices.get(i)+" to simplex storage structure");
             }
         }
-        log.debug("Finished computing filtrationIndices.");
+        log.debug("Finished computing filtrationValues.");
         return storageStructure;
     }
 
     /**
-     * Calculates the filtrationIndices of a simplex.
+     * Calculates the filtrationValues of a simplex.
      * @param simplex
      * @param distanceMatrices
      * @param filtrationValues
      * @return
      */
-    public static List<Integer> calcFiltrationIndexes(Simplex simplex, List<DistanceMatrix> distanceMatrices, List<List<Double>> filtrationValues){
+    public static List<Integer> calcFiltrationIndexes(Simplex simplex, List<DistanceMatrix> distanceMatrices, List<List<Double>> filtrationValues, BinomialCoeffTable binomial_coeff){
         //Find maximum value of the weights on the edges for each metric
-        List<Integer> vertices = simplex.getVertices();
+        int[] vertices = Simplex.get_simplex_vertices(simplex.getIndex(), simplex.getDimension(), distanceMatrices.get(0).cols-1, binomial_coeff);
 
         List<Integer> filtrationIndices = new ArrayList<>();
         for(int k=0 ; k < filtrationValues.size(); k++){
             DistanceMatrix distanceMatrix = distanceMatrices.get(k);
             double f_max = -1;
-            for(int i=0;i<vertices.size();i++){
-                for(int j=i;j<vertices.size();j++){
-                    double f = distanceMatrix.get(vertices.get(i), vertices.get(j));
+            for(int i=0;i<vertices.length;i++){
+                for(int j=i;j<vertices.length;j++){
+                    double f = distanceMatrix.get(vertices[i], vertices[j]);
                     if(f > f_max){
                         f_max = f;
                     }
                 }
             }
-
             List<Double> filtrationvalues_k = filtrationValues.get(k);
             int filtrationIndex = 0, i=0;
             while(i<filtrationvalues_k.size() && f_max > filtrationvalues_k.get(i)){
@@ -231,7 +229,7 @@ public class SimplicialComplex {
         List<DistanceMatrix> distanceMatrices = new ArrayList<>();
         distanceMatrices.add(distanceMatrix);
         PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(distanceMatrices, filtrationValues, 2);
-        Noise noise = new StandardNoise();
-        noise.computeFCF(persistenceModules.get(1).getFunctor(), persistenceModules.get(1).getFiltrationValues());
+        PersistenceContour persistenceContour = new StandardContour(filtrationValues);
+        persistenceModules.get(1).computeStableRank(filtrationValues.get(0), persistenceContour);
     }
 }

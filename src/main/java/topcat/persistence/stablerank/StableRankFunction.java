@@ -18,20 +18,21 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package topcat.persistence.fcf;
+package topcat.persistence.stablerank;
 
 import topcat.util.Pair;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
- * Represents a basic barcode of a persistence module for some noise.
- * See the paper Multidimensional Persistence and Noise by Chachólski et al.
- * (arXiv:1505.06929) for details.
+ * Represents the stable rank function of a persistence module for some persistence contour.
+ * See the paper Stable Invariants for Multidimensional Persistence by Gäfvet and Chachólski
+ * (arXiv:1703.03632) for details.
  */
-public class FeatureCountingFunction extends ArrayList<Pair<Double, Integer>> {
+public class StableRankFunction extends ArrayList<Pair<Double, Integer>> {
 
     /**
      * Returns the critical epsilon values of the feature counting function.
@@ -63,7 +64,7 @@ public class FeatureCountingFunction extends ArrayList<Pair<Double, Integer>> {
         if(o==null || !o.getClass().equals(getClass())){
             return false;
         }
-        FeatureCountingFunction other = (FeatureCountingFunction) o;
+        StableRankFunction other = (StableRankFunction) o;
         if(size() != other.size()){
             return false;
         }
@@ -76,13 +77,25 @@ public class FeatureCountingFunction extends ArrayList<Pair<Double, Integer>> {
         return true;
     }
 
+    public List<List<Double>> toList(){
+        List<Double> epsilons = new ArrayList<>();
+        List<Double> values = new ArrayList<>();
+        for(int i=0;i<size();i++){
+            epsilons.add(get(i)._1());
+            values.add(get(i)._2().doubleValue());
+        }
+        List<List<Double>> out = new ArrayList<>();
+        out.add(epsilons);out.add(values);
+        return out;
+    }
+
     /**
      * Computes the shift to interleave f into g.
      * @param f
      * @param g
      * @return
      */
-    private static double computeInterleaving(FeatureCountingFunction f, FeatureCountingFunction g){
+    private static double computeInterleaving(StableRankFunction f, StableRankFunction g){
         double f_e = -1;
         for(Pair<Double, Integer> f_pair : f){
             double min = Double.POSITIVE_INFINITY;
@@ -103,7 +116,7 @@ public class FeatureCountingFunction extends ArrayList<Pair<Double, Integer>> {
      * @param g
      * @return
      */
-    public static double interleavingDistance(FeatureCountingFunction f, FeatureCountingFunction g){
+    public static double interleavingDistance(StableRankFunction f, StableRankFunction g){
         double f_e = computeInterleaving(f, g);
         double g_e = computeInterleaving(g, f);
         return f_e < g_e ? g_e : f_e;
@@ -115,7 +128,7 @@ public class FeatureCountingFunction extends ArrayList<Pair<Double, Integer>> {
      * @param g
      * @return
      */
-    public static double interleavingDistance(FeatureCountingFunctionCollection f, FeatureCountingFunctionCollection g){
+    public static double interleavingDistance(StableRankFunctionCollection f, StableRankFunctionCollection g){
         if(f == null || g == null || f.getPresentDimensions() == null || g.getPresentDimensions() == null) return Double.MAX_VALUE;
 
         Set<Integer> dimensions = new HashSet<Integer>();

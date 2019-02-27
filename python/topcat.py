@@ -1,0 +1,63 @@
+from py4j.java_gateway import (JavaGateway, GatewayParameters)
+import os
+import numpy as np
+
+def absolutejarpath():
+	filepath = os.path.abspath(__file__)
+	projectdir = os.path.split(os.path.split(filepath)[0])[0]
+	jarpath = os.path.join(os.path.join(projectdir, "target"), "topcat-1.0-SNAPSHOT.jar")
+	return jarpath
+
+os.system("java -cp "+absolutejarpath()+" topcat.mains.PythonInterface &")
+gateway = JavaGateway(gateway_parameters=GatewayParameters(auto_convert=True))
+app = gateway.entry_point
+
+ 
+def getGateway():
+	return gateway
+
+def persistenceModule(distanceMatrices, filtrationValues, dim):
+	return PersistenceModule(app.computePersistenceModule(distanceMatrices, filtrationValues, dim))
+
+def persistenceModules(distanceMatrices, filtrationValues, maxdim, contour=None):
+	if contour == None:
+		return map(PersistenceModule, app.computePersistenceModules(distanceMatrices, filtrationValues, maxdim))
+	return map(PersistenceModule, app.computePersistenceModules(distanceMatrices, filtrationValues, maxdim, contour))
+
+def stableRank(distanceMatrices, filtrationValues, maxdim, contour=None):
+	if contour == None:
+		return np.asarray(list(app.computeStableRank(distanceMatrices, filtrationValues, maxdim)))
+	return np.asarray(list(app.computeStableRank(distanceMatrices, filtrationValues, maxdim, contour)))
+
+class PersistenceModule(object):
+	def __init__(self, module):
+		self.module = module
+
+	'''
+		Computes the stable rank of the persistence module for shift values 'values'.
+		@param values - a list of floats specifying the shift values
+		returns a StableRankFunction object containing the stable rank for the shift values.
+	'''
+	def stableRank(self, values):
+		return self.module.computeStableRank(values)
+
+	'''
+		Computes the stable rank for a specified contour
+		@param contour - a PersistenceContour java object
+	'''
+	def stableRank(self, values, contour):
+		return self.module.computeStableRank(values, contour)
+
+	'''
+		Computes the rank of the map from index u to index v.
+		@param u - a list of integers
+		@param v - a list of integers
+		returns the rank of the map.
+	'''
+	def rank(self, u, v):
+		return self.module.rank(u, v)
+
+	def __str__(self):
+		return self.module.getFunctor().toString()
+
+

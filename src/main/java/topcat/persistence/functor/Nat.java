@@ -26,7 +26,9 @@ import topcat.persistence.functor.exception.MalformedNaturalTransformation;
 import topcat.util.Grid;
 import topcat.util.GridIterator;
 import topcat.util.IntTuple;
+import topcat.util.Pair;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**

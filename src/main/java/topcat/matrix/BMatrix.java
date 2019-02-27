@@ -20,26 +20,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package topcat.matrix;
 
-import gnu.trove.iterator.TIntIterator;
-import gnu.trove.iterator.TIntObjectIterator;
-import gnu.trove.map.hash.TIntObjectHashMap;
-import gnu.trove.set.hash.TIntHashSet;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import topcat.matrix.exception.NoSolutionException;
 import topcat.matrix.exception.WrongDimensionException;
 import topcat.util.IntPair;
 import topcat.util.Pair;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 /**
  * Represents a matrix with coefficients in the field Z/2Z. It is implemented as a boolean matrix with element-wise
  * XOR as additive operation and the AND operation for matrix multiplication.
  */
 public class BMatrix {
-    private TIntObjectHashMap<BVector> A = new TIntObjectHashMap<>();
+    private Int2ObjectOpenHashMap<BVector> A = new Int2ObjectOpenHashMap<>();
     public int rows, cols;
 
     public BMatrix(int m, int n){
@@ -48,10 +44,15 @@ public class BMatrix {
     }
 
     public BMatrix(List<BVector> vectors){
-        this.rows = vectors.size();
-        this.cols = vectors.get(0).getLength();
-        for(int i=0;i<this.rows;i++){
-            this.A.put(i, vectors.get(i));
+        if(vectors == null || vectors.size() == 0){
+            this.rows = 0;
+            this.cols = 0;
+        }else {
+            this.rows = vectors.size();
+            this.cols = vectors.get(0).getLength();
+            for (int i = 0; i < this.rows; i++) {
+                this.A.put(i, vectors.get(i));
+            }
         }
     }
 
@@ -94,25 +95,22 @@ public class BMatrix {
         return A.containsKey(i);
     }
 
-    public TIntObjectIterator<BVector> getRowIterator(){
-        return A.iterator();
-    }
-
     public int[] getCreatedRowIndices(){
-        return A.keys();
+        return A.keySet().toIntArray();
     }
 
     public BMatrix mult(BMatrix B) {
+        if(B == null) return null;
         if(cols != B.rows) {
             throw new WrongDimensionException("Matrix dimensions don't match. dim(A) = (" + rows + ", " + cols + "), dim(B) = (" + B.rows + ", " + B.cols + ")");
         }
         BMatrix C = new BMatrix(rows, B.cols);
         for(int i=0;i<rows;i++){
             if(A.containsKey(i)) {
-                TIntIterator iterator = A.get(i).getIndexSetIterator();
+                IntIterator iterator = A.get(i).getIndexSetIterator();
                 BVector row = new BVector(B.cols);
                 while (iterator.hasNext()) {
-                    row = row.plus(B.getRow(iterator.next()));
+                    row = row.plus(B.getRow(iterator.nextInt()));
                 }
                 C.setRow(i, row);
             }
@@ -127,10 +125,10 @@ public class BMatrix {
         BVector x = new BVector(rows);
         for(int i=0;i<rows;i++){
             if(A.containsKey(i)) {
-                TIntIterator iterator = A.get(i).getIndexSetIterator();
+                IntIterator iterator = A.get(i).getIndexSetIterator();
                 boolean val = false;
                 while (iterator.hasNext()) {
-                    val = val ^ b.get(iterator.next());
+                    val = val ^ b.get(iterator.nextInt());
                 }
                 x.set(i, val);
             }
@@ -150,20 +148,10 @@ public class BMatrix {
 
     public static BMatrix ker(BMatrix A){
         //Init basis elements
-        BVector[] sourceBasis = new BVector[A.cols];
-        for(int i=0;i<sourceBasis.length;i++){
-            sourceBasis[i] = new BVector(A.cols);
-            sourceBasis[i].set(i, true);
-        }
+        BMatrix sourceBasis = identity(A.cols);
         BMatrix At = A.transpose();
 
-        try {
-            reduceRows(At, sourceBasis);
-        }catch (WrongDimensionException wde){
-            //This cannot happen...
-            wde.printStackTrace();
-            return null;
-        }
+        reduceRows(At, sourceBasis);
 
         int ctr = 0;
         for(int i=0;i<At.rows;i++){
@@ -173,7 +161,7 @@ public class BMatrix {
         ctr=0;
         for(int i=0;i<At.rows;i++){
             if(At.getRow(i).getNumberOfNonZeroElements() == 0){
-                kernelBasis.setRow(ctr, sourceBasis[i]);
+                kernelBasis.setRow(ctr, sourceBasis.getRow(i));
                 ctr++;
             }
         }
@@ -184,9 +172,9 @@ public class BMatrix {
         BMatrix At = new BMatrix(cols, rows);
         for(int i=0;i<rows;i++){
             if(A.containsKey(i)) {
-                TIntIterator iterator = A.get(i).getIndexSetIterator();
+                IntIterator iterator = A.get(i).getIndexSetIterator();
                 while (iterator.hasNext()) {
-                    At.set(iterator.next(), i, true);
+                    At.set(iterator.nextInt(), i, true);
                 }
             }
         }
@@ -199,9 +187,11 @@ public class BMatrix {
      * @return a matrix where the rows are the basis vectors
      */
     public static BMatrix extendBasis(BMatrix A) throws NoSolutionException{
-        BMatrix M = concat(A.transpose(), identity(A.cols)).transpose();
+        BMatrix M = vconcat(A, identity(A.cols));
         BMatrix Mreduced = new BMatrix(M);
-        List<IntPair> pivots = reduceRows(Mreduced, new BMatrix(M.rows, 0));
+
+        List<IntPair> pivots = reduceRows(Mreduced);
+
         BMatrix B = new BMatrix(A.cols, A.cols);
         for(int i=0;i<pivots.size();i++){
             B.setRow(i, M.getRow(pivots.get(i)._1()));
@@ -218,7 +208,10 @@ public class BMatrix {
      * @return a basis (as row vectors) for the subspace spanned by the rows of A.
      */
     public static BMatrix getBasis(BMatrix A) throws WrongDimensionException{
-        List<IntPair> pivots = reduceRows(new BMatrix(A), new BMatrix(A.rows, 0));
+        BMatrix At = A.transpose();
+        final int[] column_sizes = new int[At.rows];
+        for(int i=0;i<At.rows;i++) column_sizes[i] = At.getRow(i).getNumberOfNonZeroElements();
+        List<IntPair> pivots = reduceRows(new BMatrix(A));
         BMatrix B = new BMatrix(pivots.size(), A.cols);
         for(int i=0;i<pivots.size();i++){
             B.setRow(i, A.getRow(pivots.get(i)._1()));
@@ -227,6 +220,7 @@ public class BMatrix {
     }
 
     public static int rank(BMatrix A){
+        if(A==null) return 0;
         int pivots=-1;
         try{
             pivots = reduceRows(new BMatrix(A), new BMatrix(A.rows, 1)).size();
@@ -237,26 +231,7 @@ public class BMatrix {
         return pivots;
     }
 
-    private static void reduceRows(BMatrix A, BVector[] basis) throws WrongDimensionException{
-        int[] rowIndices = A.getCreatedRowIndices();
-        for(int i=0; i<A.rows;i++){
-            if(A.hasCreatedRow(i)) {
-                BVector row = A.getRow(i);
-                if (row.getNumberOfNonZeroElements() == 0) continue;
-                TIntIterator iterator = row.getIndexSetIterator();
-                int pivot = iterator.next();
-                for (int j : rowIndices) {
-                    if (i == j) continue;
-                    if (A.get(j, pivot)) {
-                        A.setRow(j, A.getRow(j).plus(A.getRow(i)));
-                        basis[j] = basis[j].plus(basis[i]);
-                    }
-                }
-            }
-        }
-    }
-
-    private static List<IntPair> reduceRows(BMatrix A, BMatrix B) throws WrongDimensionException{
+    public static List<IntPair> reduceRows(BMatrix A) throws WrongDimensionException{
         List<IntPair> pivots = new ArrayList<>();
         int[] rowIndices = A.getCreatedRowIndices();
         for(int i=0; i<A.rows;i++){
@@ -265,8 +240,32 @@ public class BMatrix {
                 if (row.getNumberOfNonZeroElements() == 0){
                     continue;
                 }
-                TIntIterator iterator = row.getIndexSetIterator();
-                int pivot = iterator.next();
+                int pivot = row.getIndexSetIterator().nextInt();
+                pivots.add(new IntPair(i, pivot));
+                for (int j : rowIndices) {
+                    if (i == j){
+                        continue;
+                    }
+                    if (A.get(j, pivot)) {
+                        A.setRow(j, A.getRow(j).plus(A.getRow(i)));
+                    }
+                }
+            }
+
+        }
+        return pivots;
+    }
+
+    public static List<IntPair> reduceRows(BMatrix A, BMatrix B) throws WrongDimensionException{
+        List<IntPair> pivots = new ArrayList<>();
+        int[] rowIndices = A.getCreatedRowIndices();
+        for(int i=0; i<A.rows;i++){
+            if(A.hasCreatedRow(i)) {
+                BVector row = A.getRow(i);
+                if (row.getNumberOfNonZeroElements() == 0){
+                    continue;
+                }
+                int pivot = row.getIndexSetIterator().nextInt();
                 pivots.add(new IntPair(i, pivot));
                 for (int j : rowIndices) {
                     if (i == j){
@@ -283,6 +282,67 @@ public class BMatrix {
         return pivots;
     }
 
+
+    public static void reduceRows(BMatrix A, BMatrix B, List<IntPair> pivots) throws WrongDimensionException{
+        int[] rowIndices = A.getCreatedRowIndices();
+        for(IntPair pivot : pivots){
+            int i = pivot._1();
+            int _pivot = pivot._2();
+            BVector row = A.getRow(i);
+            if (row.getNumberOfNonZeroElements() == 0){
+                continue;
+            }
+            for (int j : rowIndices) {
+                if (i == j){
+                    continue;
+                }
+                if (A.get(j, _pivot)) {
+                    A.setRow(j, A.getRow(j).plus(A.getRow(i)));
+                    B.setRow(j, B.getRow(j).plus(B.getRow(i)));
+                }
+            }
+
+        }
+    }
+
+
+    public static Pair<BMatrix, BMatrix> reduction(final BMatrix A, List<Pair<Integer, Integer>> pivots){
+        BMatrix At = A.transpose();
+        BMatrix Atred = new BMatrix(At);
+        BMatrix sourceBasis = identity(A.cols);
+        //Reduce rows
+
+        //reduceRows(Atred, sourceBasis, pivots);
+        reduceRows(Atred, sourceBasis);
+
+        List<BVector> imageVectors = new ArrayList<>();
+        List<BVector> kernelVectors = new ArrayList<>();
+
+        for(int i=0;i<At.rows;i++){
+            if(Atred.hasCreatedRow(i) && Atred.getRow(i).getNumberOfNonZeroElements() > 0){
+                imageVectors.add(At.getRow(i));
+            }else{
+                kernelVectors.add(sourceBasis.getRow(i));
+            }
+        }
+
+        BMatrix imageBasis;
+        if(imageVectors.size() > 0){
+            imageBasis = new BMatrix(imageVectors);
+        }else{
+            imageBasis = new BMatrix(0, At.cols);
+        }
+
+        BMatrix kernelBasis;
+        if(kernelVectors.size() > 0){
+            kernelBasis = new BMatrix(kernelVectors);
+        }else{
+            kernelBasis = new BMatrix(0, A.cols);
+        }
+        return new Pair<>(kernelBasis, imageBasis);
+    }
+
+
     /**
      * Performs a matrix reduction on A that reduces it to Smith-normal form. A basis
      * for the image and kernel of A is returned.
@@ -290,25 +350,19 @@ public class BMatrix {
      * @return a pair of matrices (kernelbasis, imagebasis) where the rows of the
      * matrices are the basis vectors.
      */
-    public static Pair<BMatrix, BMatrix> reduction(BMatrix A){
+    public static Pair<BMatrix, BMatrix> reduction(final BMatrix A){
         BMatrix At = A.transpose();
         BMatrix Atred = new BMatrix(At);
         BMatrix sourceBasis = identity(A.cols);
         //Reduce rows
-        try {
-            reduceRows(Atred, sourceBasis);
-        }catch (WrongDimensionException wde){
-            //This cannot happen...
-            wde.printStackTrace();
-            return null;
-        }
 
+        reduceRows(Atred, sourceBasis);//, column_ordering);
 
         List<BVector> imageVectors = new ArrayList<>();
         List<BVector> kernelVectors = new ArrayList<>();
 
         for(int i=0;i<At.rows;i++){
-            if(Atred.getRow(i).getNumberOfNonZeroElements() > 0){
+            if(Atred.hasCreatedRow(i) && Atred.getRow(i).getNumberOfNonZeroElements() > 0){
                 imageVectors.add(At.getRow(i));
             }else{
                 kernelVectors.add(sourceBasis.getRow(i));
@@ -356,7 +410,7 @@ public class BMatrix {
         BMatrix Bp = new BMatrix(B);
         List<IntPair> pivots = reduceRows(Ap, Bp);
 
-        TIntHashSet pivotHashSet = new TIntHashSet();
+        IntOpenHashSet pivotHashSet = new IntOpenHashSet();
         for(IntPair pair : pivots){
             pivotHashSet.add(pair._1());
         }
@@ -374,6 +428,11 @@ public class BMatrix {
         return hasSolution(A, B.transpose());
     }
 
+
+    public static BMatrix solve(BMatrix A, BMatrix B){
+        return solve(A, B, null);
+    }
+
     /**
      * Solves the linear equation AX=B where A, X and B are matrices.
      * @param A
@@ -381,20 +440,26 @@ public class BMatrix {
      * @return
      * @throws NoSolutionException
      */
-    public static BMatrix solve(BMatrix A, BMatrix B) throws NoSolutionException{
+    public static BMatrix solve(BMatrix A, BMatrix B, List<IntPair> pivots) throws NoSolutionException{
         BMatrix Ap = new BMatrix(A);
         BMatrix Bp = new BMatrix(B);
-        List<IntPair> pivots = reduceRows(Ap, Bp);
 
-        //Sort the pivots by column
-        Collections.sort(pivots, new Comparator<IntPair>() {
-            @Override
-            public int compare(IntPair o1, IntPair o2) {
-                return o1._2()-o2._2();
-            }
-        });
+        pivots = null;
 
-        TIntHashSet pivotHashSet = new TIntHashSet();
+        if(pivots != null) {
+            reduceRows(Ap, Bp, pivots);
+        }else {
+            pivots = reduceRows(Ap, Bp);
+            //Sort the pivots by column
+            Collections.sort(pivots, new Comparator<IntPair>() {
+                @Override
+                public int compare(IntPair o1, IntPair o2) {
+                    return o1._2() - o2._2();
+                }
+            });
+        }
+
+        IntOpenHashSet pivotHashSet = new IntOpenHashSet();
         for(IntPair pair : pivots){
             pivotHashSet.add(pair._1());
         }
@@ -426,10 +491,14 @@ public class BMatrix {
     }
 
     public BMatrix inverse() throws NoSolutionException{
+        return inverse(null);
+    }
+
+    public BMatrix inverse(List<IntPair> pivots) throws NoSolutionException{
         if(rows != cols){
             throw new WrongDimensionException("Matrix is not square! rows = "+rows+" cols = "+cols);
         }
-        return solve(this, BMatrix.identity(rows));
+        return solve(this, BMatrix.identity(rows), pivots);
     }
 
     /**
@@ -445,22 +514,54 @@ public class BMatrix {
         if(end_col==-1) end_col=cols;
         BMatrix A = new BMatrix(end_row-start_row, end_col-start_col);
         for(int i=start_row;i<end_row;i++){
-            TIntIterator iterator = getRow(i).getIndexSetIterator();
+            IntIterator iterator = getRow(i).getIndexSetIterator();
             while(iterator.hasNext()){
-                int index = iterator.next();
+                int index = iterator.nextInt();
                 if(index >= start_col && index < end_col) A.set(i-start_row, index-start_col, true);
             }
         }
         return A;
     }
 
+    /**
+     * Concatenates the matrix A and B horizontally into [A B].
+     * @param A
+     * @param B
+     * @return [A B]
+     * @throws WrongDimensionException
+     */
     public static BMatrix concat(BMatrix A, BMatrix B) throws WrongDimensionException{
+        if(A==null) return B;
+        if(B == null) return A;
         if(A.rows != B.rows) {
             throw new WrongDimensionException("Dimensions do not agree: Rows must be equal A.rows = " + A.rows + " B.rows = " + B.rows);
         }
         BMatrix C = new BMatrix(A.rows, A.cols+B.cols);
         for(int i=0;i<C.rows;i++){
             C.setRow(i, BVector.concat(A.getRow(i), B.getRow(i)));
+        }
+        return C;
+    }
+
+    /**
+     * Concatenates the matrix A and B vertically into [A; B].
+     * @param A
+     * @param B
+     * @return [A; B]
+     * @throws WrongDimensionException
+     */
+    public static BMatrix vconcat(BMatrix A, BMatrix B) throws WrongDimensionException{
+        if(A==null) return B;
+        if(B == null) return A;
+        if(A.cols != B.cols) {
+            throw new WrongDimensionException("Dimensions do not agree: cols must be equal A.cols = " + A.cols + " B.cols = " + B.cols);
+        }
+        BMatrix C = new BMatrix(A.rows+B.rows, A.cols);
+        for(int i=0;i<A.rows;i++){
+            C.setRow(i, A.getRow(i));
+        }
+        for(int i=0;i<B.rows;i++){
+            C.setRow(A.rows+i, B.getRow(i));
         }
         return C;
     }

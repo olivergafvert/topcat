@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 package topcat.matrix.rankminimization;
 
-import gnu.trove.map.hash.TIntObjectHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import topcat.matrix.BMatrix;
 import topcat.matrix.BVector;
 import topcat.matrix.exception.WrongDimensionException;
@@ -36,7 +36,7 @@ public class VectorSpaceIterator implements Iterator<BVector>{
     private long max_value;
     private long pos = 0;
     private int cache_size = 0;
-    private TIntObjectHashMap<BVector> cache = new TIntObjectHashMap<>();
+    private Int2ObjectOpenHashMap<BVector> cache = new Int2ObjectOpenHashMap<>();
     private BVector prev;
 
     protected VectorSpaceIterator(BMatrix basis, int cache_size){
@@ -80,7 +80,7 @@ public class VectorSpaceIterator implements Iterator<BVector>{
         try {
             long diff = pos^(pos-1); //Calc bit diff
             if(diff < this.cache_size){
-                if(cache.contains((int)diff)){
+                if(cache.containsKey((int)diff)){
                     v = prev.plus(cache.get((int)diff));
                 }else{
                     BVector w = new BVector(basis.cols);

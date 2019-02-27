@@ -20,8 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package topcat.matrix;
 
-import gnu.trove.iterator.TIntIterator;
-import gnu.trove.set.hash.TIntHashSet;
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import topcat.matrix.exception.WrongDimensionException;
 
 /**
@@ -29,11 +29,11 @@ import topcat.matrix.exception.WrongDimensionException;
  * XOR as additive operation and the AND operation for matrix multiplication.
  */
 public class BVector {
-    private TIntHashSet pos; //the non-zero positions
+    private IntOpenHashSet pos; //the non-zero positions
     private int length;
 
     public BVector(int length){
-        this(length, new TIntHashSet());
+        this(length, new IntOpenHashSet());
     }
 
     public BVector(int length, int[] nonzeroIndices){
@@ -41,17 +41,17 @@ public class BVector {
         for(int i : nonzeroIndices) pos.add(i);
     }
 
-    public BVector(int length, TIntHashSet pos){
+    public BVector(int length, IntOpenHashSet pos){
         this.length = length;
         this.pos = pos;
     }
 
     public BVector(BVector V){
         this.length = V.length;
-        this.pos = new TIntHashSet();
-        TIntIterator iterator = V.getIndexSetIterator();
+        this.pos = new IntOpenHashSet();
+        IntIterator iterator = V.getIndexSetIterator();
         while(iterator.hasNext()){
-            set(iterator.next(), true);
+            set(iterator.nextInt(), true);
         }
     }
 
@@ -88,8 +88,8 @@ public class BVector {
         if(other.length != this.length){
             throw new WrongDimensionException("Length of vectors don't match.");
         }
-        TIntHashSet larger;
-        TIntHashSet smaller;
+        IntOpenHashSet larger;
+        IntOpenHashSet smaller;
 
         if(pos.size() < other.pos.size()){
             larger = other.pos;
@@ -98,8 +98,8 @@ public class BVector {
             larger = pos;
             smaller = other.pos;
         }
-        TIntIterator iterator = smaller.iterator();
-        TIntHashSet n = new TIntHashSet(larger);
+        IntIterator iterator = smaller.iterator();
+        IntOpenHashSet n = new IntOpenHashSet(larger);
         while(iterator.hasNext()){
             int val = iterator.next();
             if(n.contains(val)){
@@ -111,28 +111,28 @@ public class BVector {
         return new BVector(length, n);
     }
 
-    public TIntIterator getIndexSetIterator(){
+    public IntIterator getIndexSetIterator(){
         return pos.iterator();
     }
 
     public static BVector concat(BVector v1, BVector v2){
         BVector v = new BVector(v1.length+v2.length);
-        TIntIterator iterator = v1.getIndexSetIterator();
+        IntIterator iterator = v1.getIndexSetIterator();
         while(iterator.hasNext()){
-            v.set(iterator.next(), true);
+            v.set(iterator.nextInt(), true);
         }
         iterator = v2.getIndexSetIterator();
         while(iterator.hasNext()){
-            v.set(iterator.next()+v1.length, true);
+            v.set(iterator.nextInt()+v1.length, true);
         }
         return v;
     }
 
     public BVector subvector(int start, int end){
         BVector v = new BVector(end-start);
-        TIntIterator iterator = this.getIndexSetIterator();
+        IntIterator iterator = this.getIndexSetIterator();
         while(iterator.hasNext()){
-            int n = iterator.next();
+            int n = iterator.nextInt();
             if(n >= start && n < end){
                 v.set(n, true);
             }
@@ -146,9 +146,9 @@ public class BVector {
         BVector v = (BVector) o;
         if(length != v.length) return false;
         if(getNumberOfNonZeroElements() != v.getNumberOfNonZeroElements()) return false;
-        TIntIterator iterator = getIndexSetIterator();
+        IntIterator iterator = getIndexSetIterator();
         while(iterator.hasNext()){
-            if(!v.get(iterator.next())) return false;
+            if(!v.get(iterator.nextInt())) return false;
         }
         return true;
     }

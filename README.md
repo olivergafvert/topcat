@@ -1,20 +1,35 @@
 TOPCAT
 ===
-Topcat is Java library for computing invariants on multidimensional persistence modules. Topcat has been developed during my work on my master's thesis about multidimensional persistence at KTH Royal Institute of Technology in Stockholm, Sweden. The theoretical framework is based on the paper "Multidimensional Persistence and Noise" by Chachólski et al. (arXiv:1505.06929). A detailed description of the algorithms implemented in Topcat can be found in my <a href="http://kth.diva-portal.org/smash/record.jsf?pid=diva2%3A939842&dswid=-4958">thesis</a>.
+Topcat is Java library for computing and analyzing multiparameter persistence modules. It comes with a python interface and a jupyter notebook with examples of how to use it. 
 
-Topcat currently only supports computations over the field Z/2Z but all algorithms that are used in Topcat extend to an arbitrary field. Also, Topcat currently only supports computation of the homology of a multifiltered simplicial complex, although the framework may be extended to computing the homology of any type of multifiltered space for which there are algorithms to do so.
+Input to Topcat can be given as either:
+* a list of distance matrices and a list of filtration values for each parameter
+* a multifiltered simplicial complex
 
-The input that may be given to Topcat is in the form of a list of distance matrices together with one or more lists of filtration values. Then a multifiltered Vietoris-Rips complex will be constructed using this data and passed to the next step in the pipeline. Given this input Topcat computes the complete persistence module, including all maps, for each dimension up to a specified max dimension. 
+The current implementation of Topcat has been inspired by Ulrich Bauers work on Ripser (http://ripser.org), where he uses the following optimizations (among others):
+* computes the cohomology instead of homology,
+* uses the combinatorial number system to index simplices,
+* performs an implicit matrix reduction of the coboundary matrix .
 
-When the persistence modules have been computed it is straightforward to compute any invariant. Topcat currently supports computation of the rank invariant (see "The theory of multidimensional persistence" by Carlsson and Zomorodian) and the feature counting function (previously called basic barcode) (see "Multidimensional persistence and noise" by Chachólski et al.) for a special type of domain noise and a lower bound of the feature counting function for standard noise in the direction of a ray.
+We make heavy use of these techniques in Topcat to be able to handle millions of simplices. 
 
+---
+A detailed description of the algorithms implemented in Topcat to compute the multiparameter persistence modules can be found in my <a href="http://kth.diva-portal.org/smash/record.jsf?pid=diva2%3A939842&dswid=-4958">master's thesis</a>. A description of the theory of persistence contours, noise systems and the stable rank can be found in the following papers: 
+* "Multidimensional Persistence and Noise" by Scolamiero et al. (arXiv:1505.06929)
+* "Stable Invariants for Multidimensional Persistence" by G and Chachólski (arXiv:1703.03632)
+
+---
+Future work:
+* Make use of the Chunk reduction described in the paper ''Chunk Reduction for Multi-Parameter Persistent Homology'' by Fugacci and Kerber (arXiv:1812.08580),
+* Implement multiparameter persistence landscapes as described in the paper ''Multiparameter Persistence Landscapes'' by Oliver Vipond (arXiv:1812.09935).
 
 Requirements
 ---
 
 * Maven 2
 * Java 7 or higher
-* MATLAB (optional)
+* Python 2.7 (optional)
+* py4j (optional)
 
 
 Installation
@@ -29,11 +44,6 @@ mvn clean install
 Usage
 ---
 
-The library can be accessed either within java or via the MATLAB-interface. To access the library via MATLAB, add the topcat/matlab-folder to the matlab path with the command:
+The library can be accessed either within java or via the Python-interface.
 
-~~~
-addpath(genpath('path to/topcat/matlab'))
-~~~ 
-
-Then execute the script load_topcat.m.
 
