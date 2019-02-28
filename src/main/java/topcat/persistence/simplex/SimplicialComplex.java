@@ -202,7 +202,7 @@ public class SimplicialComplex {
         List<Integer> filtrationIndices = new ArrayList<>();
         for(int k=0 ; k < filtrationValues.size(); k++){
             DistanceMatrix distanceMatrix = distanceMatrices.get(k);
-            double f_max = -1;
+            double f_max = Double.NEGATIVE_INFINITY;
             for(int i=0;i<vertices.length;i++){
                 for(int j=i;j<vertices.length;j++){
                     double f = distanceMatrix.get(vertices[i], vertices[j]);
