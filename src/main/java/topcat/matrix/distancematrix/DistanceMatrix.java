@@ -105,6 +105,40 @@ public abstract class DistanceMatrix {
         return Math.sqrt(d);
     }
 
+    public static DistanceMatrix codensityMatrix(DistanceMatrix distanceMatrix){
+        DistanceMatrix densityMatrix = new ArrayDistanceMatrix(distanceMatrix.rows, distanceMatrix.cols);
+        for(int r=0; r<distanceMatrix.rows;r++){
+            double[] row = distanceMatrix.getRow(r);
+
+            //Elements of the row with positions
+            List<Pair<Double, Integer>> elements = new ArrayList<>();
+            for(int i=0;i<row.length;i++){
+                elements.add(new Pair<>(row[i], i));
+            }
+            Collections.sort(elements, new Comparator<Pair<Double, Integer>>() {
+                @Override
+                public int compare(Pair<Double, Integer> o1, Pair<Double, Integer> o2) {
+                    return o1._1().compareTo(o2._1());
+                }
+            });
+
+            densityMatrix.set(r, r, -densityMatrix.rows);
+            //Set the nearest neighbors
+            for(int i=1;i<elements.size();i++){
+                if(elements.get(i)._2() < r){
+                    if(densityMatrix.get(elements.get(i)._2(), r) > -i/elements.get(i)._1()){
+                        densityMatrix.set(r, elements.get(i)._2(), densityMatrix.get(elements.get(i)._2(), r));
+                    }else{
+                        densityMatrix.set(r, elements.get(i)._2(), -i/elements.get(i)._1());
+                    }
+                }else{
+                    densityMatrix.set(r, elements.get(i)._2(), -i/elements.get(i)._1());
+                }
+            }
+        }
+        return densityMatrix;
+    }
+
     public static DistanceMatrix computeKNNMatrix(DistanceMatrix distanceMatrix){
         DistanceMatrix densityMatrix = new ArrayDistanceMatrix(distanceMatrix.rows, distanceMatrix.cols);
         for(int r=0; r<distanceMatrix.rows;r++){

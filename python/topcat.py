@@ -16,18 +16,47 @@ app = gateway.entry_point
 def getGateway():
 	return gateway
 
-def persistenceModule(distanceMatrices, filtrationValues, dim):
-	return PersistenceModule(app.computePersistenceModule(distanceMatrices, filtrationValues, dim))
-
-def persistenceModules(distanceMatrices, filtrationValues, maxdim, contour=None):
+def persistenceModules_dist(distanceMatrices, filtrationValues, maxdim, contour=None):
 	if contour == None:
 		return map(PersistenceModule, app.computePersistenceModules(distanceMatrices, filtrationValues, maxdim))
 	return map(PersistenceModule, app.computePersistenceModules(distanceMatrices, filtrationValues, maxdim, contour))
 
-def stableRank(distanceMatrices, filtrationValues, maxdim, contour=None):
+'''
+	Computes the multiparameter persistence modules from a list of points up to dimension 'maxdim'.
+
+	@param points - points a numpy array of points
+	@param distances - a list of strings of the distances to be used ('euclidean', 'euclidean_codensity')
+	@param filtrationValues - a numpy array of filtration values for each distance
+	@param maxdim - the max dimension of the homology to be computed
+	
+	Returns a list of python PersistenceModule objects.
+'''
+def persistenceModules(points, distances, filtrationValues, maxdim):
+	return map(PersistenceModule, app.computePersistenceModules(points, distances, filtrationValues, maxdim))
+	
+
+def stableRank_dist(distanceMatrices, filtrationValues, maxdim, contour=None):
 	if contour == None:
 		return np.asarray(list(app.computeStableRank(distanceMatrices, filtrationValues, maxdim)))
 	return np.asarray(list(app.computeStableRank(distanceMatrices, filtrationValues, maxdim, contour)))
+
+'''
+	Computes the stable rank of the multiparameter persistence modules computed from a list 
+	of points up to dimension 'maxdim'.
+
+	@param points - points a numpy array of points
+	@param distances - a list of strings of the distances to be used ('euclidean', 'euclidean_codensity')
+	@param filtrationValues - a numpy array of filtration values for each distance
+	@param maxdim - the max dimension of the homology to be computed
+	@param contour - a numpy array of values for the step contours to be used for the stable rank (one for each distance).
+
+	Returns a list of python PersistenceModule objects.
+'''
+def stableRank(points, distances, filtrationValues, maxdim, contour=None):
+	if contour == None:
+		return np.asarray(list(app.computeStableRank(points, distances, filtrationValues, maxdim)))
+	return np.asarray(list(app.computeStableRank(points, distances, filtrationValues, maxdim, contour)))
+
 
 class PersistenceModule(object):
 	def __init__(self, module):

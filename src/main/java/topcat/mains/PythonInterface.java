@@ -56,6 +56,28 @@ public class PythonInterface {
         return DistanceMatrix.computeEuclideanDistanceMatrix(transformPoints(points));
     }
 
+    private static List<DistanceMatrix> parseDistances(List<Point> points, List<String> distances){
+        List<DistanceMatrix> distanceMatrices = new ArrayList<>();
+        for(String distance : distances){
+            String dist = distance.trim().toLowerCase();
+            if(dist.equals("euclidean")){
+                distanceMatrices.add(DistanceMatrix.computeEuclideanDistanceMatrix(points));
+            }else if(dist.equals("euclidean_codensity")){
+                distanceMatrices.add(DistanceMatrix.computeEuclideanDistanceMatrix(points));
+                distanceMatrices.add(DistanceMatrix.codensityMatrix(distanceMatrices.get(distanceMatrices.size()-1)));
+            }
+        }
+        return distanceMatrices;
+    }
+
+    public static PersistenceModuleCollection computePersistenceModules(List<List<Double>> points, List<String> distances, List<List<Double>> filtrationValues, Integer maxDimension){
+        List<Point> t_points = transformPoints(points);
+        List<DistanceMatrix> _distanceMatrices = parseDistances(t_points, distances);
+        SimplexStorageStructure simplexStorageStructure = SimplicialComplex.computeSimplexStream(_distanceMatrices, filtrationValues, maxDimension);
+        PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(simplexStorageStructure, filtrationValues, maxDimension);
+        return persistenceModules;
+    }
+
     public static PersistenceModuleCollection computePersistenceModules(List<List<List<Double>>> distanceMatrices, List<List<Double>> filtrationValues, Integer maxDimension){
         List<DistanceMatrix> _distanceMatrices = new ArrayList<>();
         for(List<List<Double>> dmat : distanceMatrices) _distanceMatrices.add(new ArrayDistanceMatrix(dmat));
@@ -64,23 +86,48 @@ public class PythonInterface {
         return persistenceModules;
     }
 
-    public static List<List<List<Double>>> computeStableRank(List<List<List<Double>>> distanceMatrices, List<List<Double>> filtrationValues, Integer maxDimension) {
-        return computeStableRank(distanceMatrices, filtrationValues, maxDimension, new StandardContour(filtrationValues));
+    public static List<List<List<Double>>> computeStableRank(List<List<Double>> points, List<String> distances, List<List<Double>> filtrationValues, Integer maxDimension) {
+        return computeStableRank(points, distances, filtrationValues, maxDimension, null);
     }
 
-    public static List<List<List<Double>>> computeStableRank(List<List<List<Double>>> distanceMatrices, List<List<Double>> filtrationValues, Integer maxDimension, List<List<List<Double>>> stepkernels) {
-        List<KernelFunction> kernels = new ArrayList<>();
-        for(int i=0;i<stepkernels.size();i++){
-            kernels.add(new StepKernelFunction(stepkernels.get(i).get(0), stepkernels.get(i).get(1)));
+    public static List<List<List<Double>>> computeStableRank(List<List<Double>> points, List<String> distances, List<List<Double>> filtrationValues, Integer maxDimension, List<List<List<Double>>> stepkernels) {
+        List<Point> t_points = transformPoints(points);
+        List<DistanceMatrix> distanceMatrices = parseDistances(t_points, distances);
+        PersistenceContour contour;
+        if(stepkernels == null){
+            contour = new StandardContour(filtrationValues);
+        }else {
+            List<KernelFunction> kernels = new ArrayList<>();
+            for (int i = 0; i < stepkernels.size(); i++) {
+                kernels.add(new StepKernelFunction(stepkernels.get(i).get(0), stepkernels.get(i).get(1)));
+            }
+            contour = new ProductContour(filtrationValues, kernels);
         }
-        PersistenceContour contour = new ProductContour(filtrationValues, kernels);
         return computeStableRank(distanceMatrices, filtrationValues, maxDimension, contour);
     }
 
-    public static List<List<List<Double>>> computeStableRank(List<List<List<Double>>> distanceMatrices, List<List<Double>> filtrationValues, Integer maxDimension, PersistenceContour persistenceContour){
+    public static List<List<List<Double>>> computeStableRank(List<List<List<Double>>> distanceMatrices, List<List<Double>> filtrationValues, Integer maxDimension) {
+        return computeStableRank(distanceMatrices, filtrationValues, maxDimension, null);
+    }
+
+    public static List<List<List<Double>>> computeStableRank(List<List<List<Double>>> distanceMatrices, List<List<Double>> filtrationValues, Integer maxDimension, List<List<List<Double>>> stepkernels) {
         List<DistanceMatrix> _distanceMatrices = new ArrayList<>();
         for(List<List<Double>> dmat : distanceMatrices) _distanceMatrices.add(new ArrayDistanceMatrix(dmat));
-        SimplexStorageStructure simplexStorageStructure = SimplicialComplex.computeSimplexStream(_distanceMatrices, filtrationValues, maxDimension);
+        PersistenceContour contour;
+        if(stepkernels == null){
+            contour = new StandardContour(filtrationValues);
+        }else {
+            List<KernelFunction> kernels = new ArrayList<>();
+            for (int i = 0; i < stepkernels.size(); i++) {
+                kernels.add(new StepKernelFunction(stepkernels.get(i).get(0), stepkernels.get(i).get(1)));
+            }
+            contour = new ProductContour(filtrationValues, kernels);
+        }
+        return computeStableRank(_distanceMatrices, filtrationValues, maxDimension, contour);
+    }
+
+    public static List<List<List<Double>>> computeStableRank(List<DistanceMatrix> distanceMatrices, List<List<Double>> filtrationValues, Integer maxDimension, PersistenceContour persistenceContour){
+        SimplexStorageStructure simplexStorageStructure = SimplicialComplex.computeSimplexStream(distanceMatrices, filtrationValues, maxDimension);
         PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(simplexStorageStructure, filtrationValues, maxDimension);
         List<List<List<Double>>> stableRankFunctions = new ArrayList<>();
         for(int i=0;i<=persistenceModules.getMaxDimension();i++){

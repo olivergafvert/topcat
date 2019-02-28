@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package topcat.matrix.distancematrix;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -89,5 +90,14 @@ public class ArrayDistanceMatrix extends DistanceMatrix {
             arr[i] = start+i;
         }
         return arr;
+    }
+
+    @Override
+    public String toString(){
+        StringBuilder sb = new StringBuilder();
+        for(int i=0;i<rows;i++){
+            sb.append(Arrays.toString(getRow(i)));
+        }
+        return sb.toString();
     }
 }
