@@ -1,6 +1,6 @@
-from py4j.java_gateway import (JavaGateway, GatewayParameters)
-import os
+from py4j.java_gateway import (JavaGateway, GatewayParameters, launch_gateway)
 import numpy as np
+import os, sys
 
 def absolutejarpath():
 	filepath = os.path.abspath(__file__)
@@ -8,18 +8,14 @@ def absolutejarpath():
 	jarpath = os.path.join(os.path.join(projectdir, "target"), "topcat-1.0-SNAPSHOT.jar")
 	return jarpath
 
-os.system("java -cp "+absolutejarpath()+" topcat.mains.PythonInterface &")
-gateway = JavaGateway(gateway_parameters=GatewayParameters(auto_convert=True))
-app = gateway.entry_point
-
- 
-def getGateway():
-	return gateway
+port = launch_gateway(classpath=absolutejarpath(), die_on_exit=True, redirect_stdout=sys.stdout)
+gateway = JavaGateway(gateway_parameters=GatewayParameters(port=port, auto_convert=True))
+topcat = gateway.jvm.topcat.mains.PythonInterface
 
 def persistenceModules_dist(distanceMatrices, filtrationValues, maxdim, contour=None):
 	if contour == None:
-		return map(PersistenceModule, app.computePersistenceModules(distanceMatrices, filtrationValues, maxdim))
-	return map(PersistenceModule, app.computePersistenceModules(distanceMatrices, filtrationValues, maxdim, contour))
+		return map(PersistenceModule, topcat.computePersistenceModules(distanceMatrices, filtrationValues, maxdim))
+	return map(PersistenceModule, topcat.computePersistenceModules(distanceMatrices, filtrationValues, maxdim, contour))
 
 '''
 	Computes the multiparameter persistence modules from a list of points up to dimension 'maxdim'.
@@ -32,13 +28,13 @@ def persistenceModules_dist(distanceMatrices, filtrationValues, maxdim, contour=
 	Returns a list of python PersistenceModule objects.
 '''
 def persistenceModules(points, distances, filtrationValues, maxdim):
-	return map(PersistenceModule, app.computePersistenceModules(points, distances, filtrationValues, maxdim))
+	return map(PersistenceModule, topcat.computePersistenceModules(points, distances, filtrationValues, maxdim))
 	
 
 def stableRank_dist(distanceMatrices, filtrationValues, maxdim, contour=None):
 	if contour == None:
-		return np.asarray(list(app.computeStableRank(distanceMatrices, filtrationValues, maxdim)))
-	return np.asarray(list(app.computeStableRank(distanceMatrices, filtrationValues, maxdim, contour)))
+		return np.asarray(list(topcat.computeStableRank(distanceMatrices, filtrationValues, maxdim)))
+	return np.asarray(list(topcat.computeStableRank(distanceMatrices, filtrationValues, maxdim, contour)))
 
 '''
 	Computes the stable rank of the multiparameter persistence modules computed from a list 
@@ -54,8 +50,8 @@ def stableRank_dist(distanceMatrices, filtrationValues, maxdim, contour=None):
 '''
 def stableRank(points, distances, filtrationValues, maxdim, contour=None):
 	if contour == None:
-		return np.asarray(list(app.computeStableRank(points, distances, filtrationValues, maxdim)))
-	return np.asarray(list(app.computeStableRank(points, distances, filtrationValues, maxdim, contour)))
+		return np.asarray(list(topcat.computeStableRank(points, distances, filtrationValues, maxdim)))
+	return np.asarray(list(topcat.computeStableRank(points, distances, filtrationValues, maxdim, contour)))
 
 
 class PersistenceModule(object):
