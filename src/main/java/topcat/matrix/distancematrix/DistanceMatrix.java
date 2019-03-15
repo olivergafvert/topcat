@@ -97,13 +97,26 @@ public abstract class DistanceMatrix {
         return distanceMatrix;
     }
 
-    private static double euclideanDistance(List<Double> a, List<Double> b){
+    public static double euclideanDistance(List<Double> a, List<Double> b){
         double d = 0;
         for(int i=0;i<a.size();i++){
             d += (a.get(i)-b.get(i))*(a.get(i)-b.get(i));
         }
         return Math.sqrt(d);
     }
+
+    /**
+     * Computes the p-norm of the elements in the list 'a'.
+     * @param a
+     * @param p
+     * @return
+     */
+    public static double norm(List<Double> a, double p){
+        double n = 0;
+        for(int i=0;i<a.size();i++) n += Math.pow(Math.abs(a.get(i)), p);
+        return Math.pow(n, 1/p);
+    }
+
 
     public static DistanceMatrix codensityMatrix(DistanceMatrix distanceMatrix){
         DistanceMatrix densityMatrix = new ArrayDistanceMatrix(distanceMatrix.rows, distanceMatrix.cols);

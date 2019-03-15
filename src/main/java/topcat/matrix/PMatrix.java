@@ -1,9 +1,9 @@
 package topcat.matrix;
 
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
-import topcat.util.Pair;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class PMatrix {
     int rows, cols;

@@ -33,6 +33,7 @@ import topcat.matrix.rankminimization.RankTreeSearch;
 import topcat.persistence.contours.PersistenceContour;
 import topcat.persistence.contours.StandardContour;
 import topcat.persistence.functor.Functor;
+import topcat.persistence.landscape.PersistenceLandscape;
 import topcat.persistence.stablerank.StableRankFunction;
 import topcat.util.IntTuple;
 import topcat.util.Pair;
@@ -83,6 +84,17 @@ public class PersistenceModule {
     }
 
     public Integer rank(List<Integer> from, List<Integer> to) { return rank(new IntTuple(from), new IntTuple(to)); }
+
+    /**
+     * Computes the cartesian persistence landscape, as described in [1].
+     *
+     * [1] - Multiparameter Persistence Landscapes, Oliver Vipond (arXiv:1812.09935).
+     * @param p - using the p-norm
+     * @return
+     */
+    public PersistenceLandscape persistenceLandscape(Integer p){
+        return PersistenceLandscape.cartesian(this, p);
+    }
 
     /**
      * Computes the Stable Rank of the persistence module at shift values 'epsilon' with

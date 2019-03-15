@@ -4,3 +4,6 @@ target/
 /.idea
 /local/*
 *.DS_Store
+*.pyc
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*

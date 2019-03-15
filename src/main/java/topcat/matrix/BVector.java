@@ -24,6 +24,9 @@ import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import topcat.matrix.exception.WrongDimensionException;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Represents a vector with coefficients in the field Z/2Z. It is implemented as a boolean matrix with element-wise
  * XOR as additive operation and the AND operation for matrix multiplication.
@@ -113,6 +116,13 @@ public class BVector {
 
     public IntIterator getIndexSetIterator(){
         return pos.iterator();
+    }
+
+    public List<Integer> getIndexSet(){
+        List<Integer> indices = new ArrayList<>();
+        IntIterator iterator = getIndexSetIterator();
+        while(iterator.hasNext()) indices.add(iterator.nextInt());
+        return indices;
     }
 
     public static BVector concat(BVector v1, BVector v2){

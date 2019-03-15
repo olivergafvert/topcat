@@ -27,13 +27,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import topcat.matrix.BMatrix;
 import topcat.matrix.BVector;
+import topcat.matrix.Column;
 import topcat.persistence.simplex.Simplex;
 import topcat.persistence.simplex.SimplexStorageStructure;
 import topcat.util.BinomialCoeffTable;
 import topcat.util.IntTuple;
 import topcat.util.Pair;
 import topcat.persistence.simplex.SimplexCoboundaryEnumerator;
-
 import java.util.*;
 
 /**
@@ -73,47 +73,16 @@ public class HomologyWorker implements Runnable{
      * @param working_coboundary
      * @return
      */
-        public long add_coboundary_and_get_pivot(Simplex s, LongOpenHashSet index_lookup, PriorityQueue<Long> working_coboundary){
-            SimplexCoboundaryEnumerator enumerator = new SimplexCoboundaryEnumerator(s, simplexStorageStructure.getNumberOfVertices(), binomialCoeffTable);
-            while (enumerator.hasNext()) {
-                long index = enumerator.next();
-                if (index_lookup.contains(index)) {
-                    working_coboundary.add(index);
-                }
-            }
-            return get_pivot(working_coboundary);
-        }
-
-    /**
-     * Helper function to @get_pivot.
-     * @param column
-     * @return
-     */
-    private long pop_pivot(PriorityQueue<Long> column){
-            if(column.isEmpty()) return -1;
-            else{
-                long pivot = column.poll();
-                while(!column.isEmpty() && column.peek() == pivot){
-                    column.poll();
-                    if(column.isEmpty()) return -1;
-                    else{
-                        pivot = column.poll();
-                    }
-                }
-                return pivot;
+    public Long add_coboundary_and_get_pivot(Simplex s, LongOpenHashSet index_lookup, Column<Long> working_coboundary){
+        SimplexCoboundaryEnumerator enumerator = new SimplexCoboundaryEnumerator(s, simplexStorageStructure.getNumberOfVertices(), binomialCoeffTable);
+        while (enumerator.hasNext()) {
+            long index = enumerator.next();
+            if (index_lookup.contains(index)) {
+                working_coboundary.add(index);
             }
         }
-
-    /**
-     * Returns the largest index of the column which is non-zero.
-     * @param column
-     * @return
-     */
-    public long get_pivot(PriorityQueue<Long> column){
-            long result = pop_pivot(column);
-            if(result != -1) column.add(result);
-            return result;
-        }
+        return working_coboundary.get_pivot();
+    }
 
     /**
      * Performs an implicit matrix reduction of the coboundary matrix.
@@ -125,13 +94,13 @@ public class HomologyWorker implements Runnable{
     public BMatrix reduce_coboundary_matrix(List<Simplex> columns_to_reduce, Long2IntOpenHashMap pivot_column_index, LongOpenHashSet index_lookup){
             BMatrix reductionMatrix = BMatrix.identity(columns_to_reduce.size());
             for(int index_column_to_reduce = 0; index_column_to_reduce<columns_to_reduce.size();index_column_to_reduce++) {
-                PriorityQueue<Long> working_coboundary= new PriorityQueue<>(10, Collections.<Long>reverseOrder());
+                Column<Long> working_coboundary= new Column<>();
                 int index_column_to_add = index_column_to_reduce;
                 while(true) {
-                    long pivot = add_coboundary_and_get_pivot(columns_to_reduce.get(index_column_to_add), index_lookup, working_coboundary);
-                    if (pivot != -1) {
-                        if (pivot_column_index.containsKey(pivot)) {
-                            index_column_to_add = pivot_column_index.get(pivot);
+                    Long pivot = add_coboundary_and_get_pivot(columns_to_reduce.get(index_column_to_add), index_lookup, working_coboundary);
+                    if (pivot != null) {
+                        if (pivot_column_index.containsKey((long)pivot)) {
+                            index_column_to_add = pivot_column_index.get((long)pivot);
                             reductionMatrix.set(index_column_to_reduce, index_column_to_add, !reductionMatrix.get(index_column_to_reduce, index_column_to_add));
                         } else {
                             pivot_column_index.addTo(pivot, index_column_to_reduce);
@@ -154,11 +123,11 @@ public class HomologyWorker implements Runnable{
         public List<Pair<Long, Integer>> computePivots(List<List<Long>> columns_to_reduce, Long2IntOpenHashMap pivot_column_index){
             List<Pair<Long, Integer>> pivot_columns = new ArrayList<>();
             for(Integer index_column_to_reduce = 0; index_column_to_reduce<columns_to_reduce.size();index_column_to_reduce++) {
-                PriorityQueue<Long> working_column= new PriorityQueue<>(10, Collections.<Long>reverseOrder());
+                Column<Long> working_column= new Column<>();
                 working_column.addAll(columns_to_reduce.get(index_column_to_reduce));
-                long pivot;
-                while((pivot=get_pivot(working_column)) != -1) {
-                    if(pivot_column_index.containsKey(pivot)){
+                Long pivot;
+                while((pivot=working_column.get_pivot()) != null) {
+                    if(pivot_column_index.containsKey((long)pivot)){
                         working_column.addAll(columns_to_reduce.get(pivot_column_index.get(pivot)));
                     }else{
                         pivot_column_index.addTo(pivot, index_column_to_reduce);
@@ -183,17 +152,17 @@ public class HomologyWorker implements Runnable{
         BMatrix reductionMatrix = new BMatrix(columns_to_reduce.size(), columns_to_reduce.size());//BMatrix.identity(columns_to_reduce.size());
         for(int i = 0; i<columns_to_reduce.size();i++) {
             Integer index_column_to_reduce = pivot_column_index.get((long)i);
-            PriorityQueue<Long> working_column= new PriorityQueue<>(10, Collections.<Long>reverseOrder());
+            Column<Long> working_column= new Column<>();
             working_column.addAll(columns_to_reduce.get(index_column_to_reduce));
             reductionMatrix.set(index_column_to_reduce, i, true);
-            long pivot;
-            while((pivot=get_pivot(working_column)) != -1) {
+            Long pivot;
+            while((pivot=working_column.get_pivot()) != null) {
                 if(pivot_column_index.get(pivot) == index_column_to_reduce){
-                    pop_pivot(working_column);
+                    working_column.pop_pivot();
                 }
                 else{
-                    working_column.addAll(columns_to_reduce.get(pivot_column_index.get(pivot)));
-                    reductionMatrix.set(pivot_column_index.get(pivot), i, !reductionMatrix.get(pivot_column_index.get(pivot), i));
+                    working_column.addAll(columns_to_reduce.get(pivot_column_index.get((long)pivot)));
+                    reductionMatrix.set(pivot_column_index.get((long)pivot), i, !reductionMatrix.get(pivot_column_index.get((long)pivot), i));
                 }
             }
         }

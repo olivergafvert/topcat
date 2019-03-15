@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package topcat.persistence.landscape;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import topcat.matrix.BMatrix;
 import topcat.matrix.PMatrix;
 import topcat.matrix.distancematrix.DistanceMatrix;
 import topcat.persistence.PersistenceModule;
@@ -54,7 +55,7 @@ public class PersistenceLandscape {
         for(int i=0;i<lambdas.keySet().size();i++) v_lambdas.add(new ArrayList<>());
         for(IntTuple v : GridIterator.getSequence(size)){
             for(int k : lambdas.keySet()){
-                v_lambdas.get(k).add(get(k, v));
+                v_lambdas.get(k-1).add(get(k, v));
             }
         }
         return v_lambdas;
@@ -66,16 +67,17 @@ public class PersistenceLandscape {
             Int2ObjectOpenHashMap<List<Double>> lambdas = new Int2ObjectOpenHashMap<>();
             List<IntTuple> basis = IntTuple.getStandardBasisSequence(v.length());
             for (int i=0;i<basis.size();i++) {
-                IntTuple shift = basis.get(i);
+                IntTuple shift = v.plus(basis.get(i));
                 int j=0;
                 int k=P.getFunctor().getDimension(v);
-                while(k>=0) {
-                    while (PMatrix.rank(P.getFunctor().getMap(v, shift)) >= k && shift.lt(P.getFunctor().getSize())) {
+                while(k>0) {
+                    while (BMatrix.rank(P.getFunctor().getMap(v, shift)) >= k && shift.lt(P.getFunctor().getSize())) {
                         shift = shift.plus(basis.get(i));
                         j++;
                     }
                     if(!lambdas.containsKey(k)) lambdas.put(k, new ArrayList<>());
-                    lambdas.get(k).add(P.getFiltrationValues().get(i).get(v.get(i) + j) - P.getFiltrationValues().get(i).get(v.get(i)));
+                    List<Double> filtrationValues = P.getFiltrationValues().get(i);
+                    lambdas.get(k).add(filtrationValues.get(v.get(i) + j >= filtrationValues.size() ? filtrationValues.size()-1 : v.get(i) + j) - filtrationValues.get(v.get(i)));
                     k--;
                 }
             }

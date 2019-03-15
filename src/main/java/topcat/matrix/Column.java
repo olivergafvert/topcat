@@ -6,8 +6,9 @@ import java.util.PriorityQueue;
 public class Column<T> extends PriorityQueue<T> {
 
     public Column(){
-        super(10, Collections.reverseOrder());
+        super(10, Collections.<T>reverseOrder());
     }
+
 
 
     /**
@@ -18,7 +19,7 @@ public class Column<T> extends PriorityQueue<T> {
         if(this.isEmpty()) return null;
         else{
             T pivot = this.poll();
-            while(!this.isEmpty() && this.peek() == pivot){
+            while(!this.isEmpty() && this.peek().equals(pivot)){
                 this.poll();
                 if(this.isEmpty()) return null;
                 else{
