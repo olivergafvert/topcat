@@ -134,13 +134,13 @@ public class Functor {
         for(int i=0;i<generators.size();i++){
             Generator g = generators.get(i);
             List<BVector> vectors = new ArrayList<>();
-            for(int j=0;j<generators.size();j++){
-                if(j==i){
-                    continue;
+            for(int j=0;j<independent_generators.size();j++){
+                if(independent_generators.get(j).equals(g)){
+                    break;
                 }
-                BMatrix M = getMap(generators.get(j).position, g.position);
+                BMatrix M = getMap(independent_generators.get(j).position, g.position);
                 if(M!=null) {
-                    BVector image = M.mult(generators.get(j).v);
+                    BVector image = M.mult(independent_generators.get(j).v);
                     if(image.getNumberOfNonZeroElements()>0)
                         vectors.add(image);
                 }
