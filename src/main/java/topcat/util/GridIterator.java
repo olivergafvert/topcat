@@ -139,4 +139,14 @@ public class GridIterator implements Iterator<IntTuple> {
 
         return sequence;
     }
+
+    public static List<IntTuple> diagonalSliceSequence(int s, IntTuple size){
+        int max = size.sum();
+        if(max < s) return new ArrayList<>();
+        List<IntTuple> seq = new ArrayList<>();
+        while(true){
+            IntTuple t = new IntTuple(size);
+
+        }
+    }
 }

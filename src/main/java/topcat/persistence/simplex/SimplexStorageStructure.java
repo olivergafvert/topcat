@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package topcat.persistence.simplex;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import topcat.util.BinomialCoeffTable;
 import topcat.util.Grid;
 import topcat.util.GridIterator;
@@ -41,6 +42,7 @@ import java.util.List;
  */
 public class SimplexStorageStructure {
     Int2ObjectOpenHashMap<Grid<List<Simplex>>> simplexContainer;
+    List<Long2ObjectOpenHashMap<Simplex>> index_lookup;
     List<List<Double>> filtrationValues;
     IntTuple gridSize;
     BinomialCoeffTable binomialCoeffTable;
@@ -52,6 +54,14 @@ public class SimplexStorageStructure {
         this.gridSize = gridSize;
         this.n_vertices = n_vertices;
         this.binomialCoeffTable = new BinomialCoeffTable(n_vertices, max_dimesion);
+        this.index_lookup = new ArrayList<>();
+        for(int i=0;i<=max_dimesion;i++){
+            index_lookup.add(new Long2ObjectOpenHashMap<>());
+        }
+    }
+
+    public Simplex indexLookup(Long index, Integer dim){
+        return index_lookup.get(dim).get((long)index);
     }
 
     public List<List<Double>> getFiltrationValues() { return filtrationValues; }
@@ -65,6 +75,7 @@ public class SimplexStorageStructure {
             simplices = new ArrayList<>();
             simplexContainer.get(simplex.getDimension()).set(filtrationIndex, simplices);
         }
+        index_lookup.get(simplex.getDimension()).put(simplex.getIndex(), simplex);
         simplices.add(simplex);
     }
 

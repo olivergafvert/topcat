@@ -22,6 +22,9 @@ package topcat.persistence.simplex;
 
 import topcat.util.BinomialCoeffTable;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Represents an n-simplex for some n >= 0. The implementation is inspired by the combinatorial number system
  * used in Ripser [1].
@@ -41,6 +44,21 @@ public class Simplex implements Comparable<Simplex>{
 
     public int getDimension() {
         return dimension;
+    }
+
+    public List<Simplex> getBoundary(SimplexStorageStructure simplexStorageStructure){
+        int[] vertices = get_simplex_vertices(getIndex(), getDimension(), simplexStorageStructure.getNumberOfVertices(), simplexStorageStructure.binomialCoeffTable);
+        List<Simplex> boundary = new ArrayList<>();
+        for(int i=0;i<vertices.length;i++){
+            List<Integer> new_v = new ArrayList<>();
+            for(int k=0;k<vertices.length;k++){
+                if(k!=i){
+                    new_v.add(vertices[k]);
+                }
+            }
+            boundary.add(simplexStorageStructure.indexLookup(simplexStorageStructure.binomialCoeffTable.computeIndex(new_v), getDimension()-1));
+        }
+        return boundary;
     }
 
     @Override

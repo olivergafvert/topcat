@@ -78,6 +78,13 @@ public class IntTuple extends Tuple<Integer>{
         return w;
     }
 
+    public int sum(){
+        int s = 0;
+        for(int i=0;i<length();i++)
+            s += get(i);
+        return s;
+    }
+
     @Override
     public boolean equals(Object o){
         if(o==null || !o.getClass().equals(this.getClass())) return false;
