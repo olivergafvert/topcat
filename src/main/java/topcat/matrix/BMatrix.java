@@ -596,4 +596,15 @@ public class BMatrix {
         }
         return sb.toString();
     }
+
+    public static BMatrix random(int n){
+        BMatrix M = new BMatrix(n, n);
+        Random r = new Random();
+        for(int i=0;i<n;i++){
+            for(int j=0;j<n;j++){
+                M.set(i, j, r.nextDouble()<0.3?true:false);
+            }
+        }
+        return M;
+    }
 }

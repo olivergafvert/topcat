@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package topcat.persistence.simplex;
 
 import topcat.util.BinomialCoeffTable;
+import topcat.util.IntTuple;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,11 +34,22 @@ import java.util.List;
  */
 public class Simplex implements Comparable<Simplex>{
     private final long index;
+    private IntTuple value;
     private final int dimension;
+    public int local = 0;
+    public Simplex pair;
 
     public Simplex(long index, int dimension){
         this.index = index;
         this.dimension = dimension;
+    }
+
+    public IntTuple getValue(){
+        return value;
+    }
+
+    public void setValue(IntTuple value){
+        this.value = value;
     }
 
     public long getIndex(){ return index; }
@@ -80,6 +92,11 @@ public class Simplex implements Comparable<Simplex>{
         if(this.index < o.index) return -1;
         if(this.index > o.index) return 1;
         return 0;
+    }
+
+    @Override
+    public String toString(){
+        return (new StringBuilder()).append("S: ").append(getIndex()).append(" ").append(getDimension()).append(" ").append(getValue()).toString();
     }
 
     /**

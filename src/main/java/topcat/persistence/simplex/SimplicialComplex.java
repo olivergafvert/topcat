@@ -20,17 +20,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package topcat.persistence.simplex;
 
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import topcat.matrix.distancematrix.ArrayDistanceMatrix;
 import topcat.persistence.PersistenceModuleCollection;
 import topcat.persistence.contours.PersistenceContour;
 import topcat.persistence.contours.StandardContour;
 import topcat.matrix.distancematrix.DistanceMatrix;
 import topcat.util.BinomialCoeffTable;
 import topcat.util.IntTuple;
+import topcat.util.Pair;
 import topcat.util.Point;
 
 import java.util.*;
@@ -52,6 +55,64 @@ public class SimplicialComplex {
         DistanceMatrix distanceMatrix = distanceMatrices.get(0);
         List<Simplex> simplices = new ArrayList<>();
 
+        Int2IntOpenHashMap relabeling = new Int2IntOpenHashMap();
+        List<Pair<int[], List<Double>>> edges = new ArrayList<>();
+        for(int i=0;i<distanceMatrix.rows-1;i++){
+            for(int j=i+1;j<distanceMatrix.rows;j++){
+                List<Double> value = new ArrayList<>();
+                boolean isLEQ = true;
+                for(int k=0;k<filtrationValue.size();k++){
+                    if(distanceMatrices.get(k).get(i, j) > filtrationValue.get(k)){
+                        isLEQ = false;
+                        break;
+                    }
+                    value.add(distanceMatrices.get(k).get(i, j));
+                }
+                if(isLEQ)
+                    edges.add(new Pair<>(new int[]{i, j}, value));
+            }
+        }
+        Collections.sort(edges, new Comparator<Pair<int[], List<Double>>>() {
+            @Override
+            public int compare(Pair<int[], List<Double>> o1, Pair<int[], List<Double>> o2) {
+                int i=0;
+                while(o1._2().get(i)==o2._2().get(i) && i<o1._2().size()-1) i++;
+                return o1._2().get(i).compareTo(o2._2().get(i));
+            }
+        });
+        int label=0;
+        for(Pair<int[], List<Double>> edge : edges){
+            for(int vertex : edge._1()) {
+                if (!relabeling.containsKey(vertex)) {
+                    relabeling.put(vertex, label);
+                    label++;
+                }
+            }
+        }
+        if(relabeling.keySet().size() != distanceMatrix.rows){
+            for(int i=0;i<distanceMatrix.rows;i++){
+                if(!relabeling.containsKey(i)){
+                    relabeling.put(i, label);
+                    label++;
+                }
+            }
+        }
+
+        //Reorder distance matrices
+        for(int i=0;i<distanceMatrices.size();i++){
+            distanceMatrix = distanceMatrices.get(i);
+            ArrayDistanceMatrix newDistanceMatrix = new ArrayDistanceMatrix(distanceMatrix.rows, distanceMatrix.cols);
+            for(int j=0;j<distanceMatrix.rows;j++){
+                newDistanceMatrix.set(relabeling.get(j), relabeling.get(j), distanceMatrix.get(j, j));
+                for(int k=j+1;k<distanceMatrix.rows;k++){
+                    newDistanceMatrix.set(relabeling.get(j), relabeling.get(k), distanceMatrix.get(j, k));
+                    newDistanceMatrix.set(relabeling.get(k), relabeling.get(j), distanceMatrix.get(k, j));
+                }
+            }
+            distanceMatrices.set(i, newDistanceMatrix);
+        }
+
+
         //Add 0-dimensional simplices
         for(int i=0;i<distanceMatrix.rows;i++){
             simplices.add(new Simplex(i, 0));
@@ -64,17 +125,11 @@ public class SimplicialComplex {
         }
 
         //Compute all edges that will appear in the multifiltration and add them as 1-simplices
-        int[] nonzeros_rows = distanceMatrix.getNonZeroRows();
 
-        for(int r=0; r < nonzeros_rows.length; r++) {
-            int i = nonzeros_rows[r];
+        for(int i=0; i < distanceMatrix.rows-1; i++) {
             IntOpenHashSet upperNeighbors = new IntOpenHashSet();
             List<Simplex> local_simplices = new ArrayList<>();
-            int[] nonzero_cols = distanceMatrix.getNonZeroRowEntries(i);
-            for (int j : nonzero_cols) {
-                if (j <= i) {
-                    continue;
-                }
+            for (int j=i+1; j<distanceMatrix.rows;j++) {
                 //Check if edge will appear in the multifiltration
                 boolean isLEQ = true;
                 for (int k = 0; k < filtrationValue.size(); k++) {
@@ -134,7 +189,7 @@ public class SimplicialComplex {
     }
 
     /**
-     * Computes the intersection of two TIntHashSets.
+     * Computes the intersection of two HashSets.
      * @param h1
      * @param h2
      * @return
@@ -178,6 +233,7 @@ public class SimplicialComplex {
         //Compute the filtration indices for each simplex.
         for(int i=0;i<simplices.size();i++){
             List<Integer> filtrationIndexes = calcFiltrationIndexes(simplices.get(i), distanceMatrices, filtrationValues, storageStructure.binomialCoeffTable);
+            simplices.get(i).setValue(new IntTuple(filtrationIndexes));
             if (filtrationIndexes != null) {
                 storageStructure.addElement(simplices.get(i), new IntTuple(filtrationIndexes));
             }else{

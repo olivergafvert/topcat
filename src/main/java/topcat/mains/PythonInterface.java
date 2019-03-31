@@ -56,7 +56,7 @@ public class PythonInterface {
         return DistanceMatrix.computeEuclideanDistanceMatrix(transformPoints(points));
     }
 
-    private static List<DistanceMatrix> parseDistances(List<Point> points, List<String> distances){
+    public static List<DistanceMatrix> parseDistances(List<Point> points, List<String> distances){
         List<DistanceMatrix> distanceMatrices = new ArrayList<>();
         for(String distance : distances){
             String dist = distance.trim().toLowerCase();

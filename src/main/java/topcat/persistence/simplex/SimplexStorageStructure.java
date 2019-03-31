@@ -81,9 +81,11 @@ public class SimplexStorageStructure {
 
     public List<Simplex> getSimplicesAt(int dim, IntTuple filtrationIndex){
         if(!simplexContainer.containsKey(dim)){
-            return null;
+            return new ArrayList<>();
         }
-        return simplexContainer.get(dim).get(filtrationIndex);
+        List<Simplex> simplices = simplexContainer.get(dim).get(filtrationIndex);
+        if(simplices == null) return new ArrayList<>();
+        return simplices;
     }
 
     public List<Simplex> getSimplicesLEQThan(int dim, IntTuple filtrationIndex){
