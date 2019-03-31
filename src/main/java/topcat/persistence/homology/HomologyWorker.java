@@ -154,16 +154,12 @@ public class HomologyWorker implements Runnable{
             Integer index_column_to_reduce = pivot_column_index.get((long)i);
             Column<Long> working_column= new Column<>();
             working_column.addAll(columns_to_reduce.get(index_column_to_reduce));
+            working_column.add((long)i);
             reductionMatrix.set(index_column_to_reduce, i, true);
             Long pivot;
             while((pivot=working_column.get_pivot()) != null) {
-                if(pivot_column_index.get(pivot) == index_column_to_reduce){
-                    working_column.pop_pivot();
-                }
-                else{
-                    working_column.addAll(columns_to_reduce.get(pivot_column_index.get((long)pivot)));
-                    reductionMatrix.set(pivot_column_index.get((long)pivot), i, !reductionMatrix.get(pivot_column_index.get((long)pivot), i));
-                }
+                working_column.addAll(columns_to_reduce.get(pivot_column_index.get((long)pivot)));
+                reductionMatrix.set(pivot_column_index.get((long)pivot), i, !reductionMatrix.get(pivot_column_index.get((long)pivot), i));
             }
         }
         return reductionMatrix;
@@ -225,7 +221,7 @@ public class HomologyWorker implements Runnable{
             for (Pair<Long, Integer> pivot : pivot_column) {
                 BVector row = new BVector(chain.get(dim).size());
                 for (long pos : homology_basis.get(pivot._2()))
-                    row.set((int) pos, true);
+                    row.set((int) pos, !row.get((int) pos));
                 extended_basis.add(row);
                 e_basis.add(homology_basis.get(pivot._2()));
             }
