@@ -22,7 +22,6 @@ package topcat;
 
 import org.junit.Assert;
 import org.junit.Test;
-import topcat.mains.PythonInterface;
 import topcat.persistence.PersistenceModuleCollection;
 import topcat.persistence.contours.StandardContour;
 import topcat.persistence.stablerank.StableRankFunction;
@@ -32,7 +31,6 @@ import topcat.util.Pair;
 import topcat.util.Point;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -42,50 +40,43 @@ public class StableRankFunctionTest {
 
     @Test
     public void circleTest(){
-        List<Point> points = Point.circle2D(1, 200);
+        List<Point> points = Point.circle2D(1, 10);
 
-        List<String> ds = new ArrayList<>();
-        ds.add("euclidean_codensity");
+        //Add distancematrices
+        DistanceMatrix distanceMatrix = DistanceMatrix.computeEuclideanDistanceMatrix(points);
 
-        List<DistanceMatrix> distanceMatrices = PythonInterface.parseDistances(points, ds);
-
-//        //Add distancematrices
-//        DistanceMatrix distanceMatrix = DistanceMatrix.computeEuclideanDistanceMatrix(points);
-//
-//        List<DistanceMatrix> distanceMatrices = new ArrayList<>();
-//        distanceMatrices.add(distanceMatrix);
+        List<DistanceMatrix> distanceMatrices = new ArrayList<>();
+        distanceMatrices.add(distanceMatrix);
 
         //Add filtrationvalues
         List<List<Double>> filtrationValues = new ArrayList<>();
         List<Double> radiusFiltrationValues = new ArrayList<>();
-        List<Double> densityvalues = Arrays.asList(new Double[]{-100.0, -50.0, -40.0, -30.0, -20.0, -15.0, -10.0, -1.0, 0.0});
         for(int i=0;i<10;i++){
             radiusFiltrationValues.add(i*0.1);
         }
         filtrationValues.add(radiusFiltrationValues);
-        filtrationValues.add(densityvalues);
 
         int maxDimension = 2; //Compute 0th and 1 homology.
         PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(distanceMatrices, filtrationValues, maxDimension);
 
-        //Assert.assertEquals(1, persistenceModules.getMaxDimension());
+        Assert.assertEquals(1, persistenceModules.getMaxDimension());
 
-//        PersistenceContour persistenceContour = new StandardContour(filtrationValues);
-//        StableRankFunction barcode0 = new StableRankFunction();
-//        for(int i=0;i<7;i++){
-//            barcode0.add(new Pair<>(radiusFiltrationValues.get(i), 10));
-//        }
-//        for(int i=7;i<10;i++){
-//            barcode0.add(new Pair<>(radiusFiltrationValues.get(i), 1));
-//        }
-//        StableRankFunction barcode0_test = persistenceModules.get(0).computeStableRank(persistenceModules.get(0).getFiltrationValues().get(0), persistenceContour);
-//        //Assert.assertEquals(barcode0, barcode0_test);
-//
-//        StableRankFunction barcode1 = new StableRankFunction();
-//        for(int i=0;i<10;i++){
-//            barcode1.add(new Pair<>(radiusFiltrationValues.get(i), 1));
-//        }
-//        StableRankFunction barcode1_test = persistenceModules.get(1).computeStableRank(persistenceModules.get(1).getFiltrationValues().get(0), persistenceContour);
-//        //Assert.assertEquals(barcode1, barcode1_test);
+        PersistenceContour persistenceContour = new StandardContour(filtrationValues);
+        StableRankFunction barcode0 = new StableRankFunction();
+        for(int i=0;i<7;i++){
+            barcode0.add(new Pair<>(radiusFiltrationValues.get(i), 10));
+        }
+        for(int i=7;i<10;i++){
+            barcode0.add(new Pair<>(radiusFiltrationValues.get(i), 1));
+        }
+        StableRankFunction barcode0_test = persistenceModules.get(0).computeStableRank(persistenceModules.get(0).getFiltrationValues().get(0), persistenceContour);
+        Assert.assertEquals(barcode0, barcode0_test);
+
+        StableRankFunction barcode1 = new StableRankFunction();
+        for(int i=0;i<10;i++){
+            barcode1.add(new Pair<>(radiusFiltrationValues.get(i), 1));
+        }
+        StableRankFunction barcode1_test = persistenceModules.get(1).computeStableRank(persistenceModules.get(1).getFiltrationValues().get(0), persistenceContour);
+        Assert.assertEquals(barcode1, barcode1_test);
     }
 }
