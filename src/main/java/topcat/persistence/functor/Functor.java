@@ -77,7 +77,7 @@ public class Functor {
      * @param v
      * @return
      */
-    private IntTuple parseTuple(IntTuple v){
+    protected IntTuple parseTuple(IntTuple v){
         IntTuple w = IntTuple.zeros(v.length());
         for(int i=0;i<v.length();i++){
             w.set(i, v.get(i) <= size.get(i) ? v.get(i) : size.get(i));
@@ -90,7 +90,7 @@ public class Functor {
      * @param v
      * @return
      */
-    private boolean isOutOfBounds(IntTuple v){
+    protected boolean isOutOfBounds(IntTuple v){
         if(v.hasNegativeElements(v)){
             return true;
         }
@@ -182,6 +182,23 @@ public class Functor {
             return;
         }
         maps.get(dim).set(v, A);
+    }
+
+    /**
+     * Sets the map 'A' from position 'v' to 'w'.
+     */
+    public void setMap(IntTuple v, IntTuple w, BMatrix A){
+        if(isOutOfBounds(v)){
+            return;
+        }
+        assert w.minus(v).sum() == 1;
+        IntTuple z = w.minus(v);
+        for(int i=0;i<z.length();i++) {
+            if (z.get(i) == 1) {
+                maps.get(i).set(v, A);
+                break;
+            }
+        }
     }
 
     /**

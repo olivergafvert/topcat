@@ -18,4 +18,16 @@ public class GradedColumn<T> extends Column<T> implements Comparable<GradedColum
     public int compareTo(GradedColumn<T> o) {
         return this.grade.compareTo(o.getGrade());
     }
+
+    @Override
+    public boolean equals(Object o){
+        if(!o.getClass().equals(GradedColumn.class)) return false;
+        GradedColumn<T> column = (GradedColumn<T>) o;
+        return column.grade.equals(this.getGrade());
+    }
+
+    @Override
+    public String toString(){
+        return "Grade: "+grade+", "+super.toString();
+    }
 }

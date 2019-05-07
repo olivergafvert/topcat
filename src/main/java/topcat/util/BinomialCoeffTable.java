@@ -37,11 +37,11 @@ import java.util.List;
 public class BinomialCoeffTable {
     List<LongList> B;
 
-    public BinomialCoeffTable(int n, int k){
+    public BinomialCoeffTable(int n_vertices, int maxDim){
         this.B = new ArrayList<>();
-        for(int i=0;i<=n;i++){
+        for(int i=0;i<=n_vertices;i++){
             LongList l = new LongArrayList();
-            for(int j=0;j<=i && j<=k+1; j++){
+            for(int j=0;j<=i && j<=maxDim+1; j++){
                 if(j==0 || j==i){
                     l.add(1);
                 }else{

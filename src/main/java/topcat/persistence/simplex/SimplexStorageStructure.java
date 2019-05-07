@@ -20,42 +20,43 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package topcat.persistence.simplex;
 
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import topcat.util.BinomialCoeffTable;
-import topcat.util.Grid;
-import topcat.util.GridIterator;
-import topcat.util.IntTuple;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import topcat.util.*;
+import topcat.util.paralelliterator.ParalellIterator;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.io.*;
+import java.util.*;
 
 /**
  * Represents a grid storage structure based on a hierarchy of hashmaps for
  * storing a multifiltered simplicial complex.
  */
 public class SimplexStorageStructure {
+    private static Logger log = LoggerFactory.getLogger(SimplexStorageStructure.class);
     Int2ObjectOpenHashMap<Grid<List<Simplex>>> simplexContainer;
     List<Long2ObjectOpenHashMap<Simplex>> index_lookup;
     List<List<Double>> filtrationValues;
     IntTuple gridSize;
-    BinomialCoeffTable binomialCoeffTable;
+    public BinomialCoeffTable binomialCoeffTable;
     Integer n_vertices;
+    int maxDimension;
 
-    public SimplexStorageStructure(List<List<Double>> filtrationValues, IntTuple gridSize, Integer max_dimesion, Integer n_vertices){
+    public SimplexStorageStructure(List<List<Double>> filtrationValues, IntTuple gridSize, Integer maxDimension, Integer n_vertices){
         simplexContainer = new Int2ObjectOpenHashMap<>();
         this.filtrationValues = filtrationValues;
         this.gridSize = gridSize;
         this.n_vertices = n_vertices;
-        this.binomialCoeffTable = new BinomialCoeffTable(n_vertices, max_dimesion);
+        this.maxDimension = maxDimension;
+        this.binomialCoeffTable = new BinomialCoeffTable(n_vertices, maxDimension);
         this.index_lookup = new ArrayList<>();
-        for(int i=0;i<=max_dimesion;i++){
+        for(int i=0;i<=maxDimension;i++){
             index_lookup.add(new Long2ObjectOpenHashMap<>());
         }
     }
@@ -98,6 +99,23 @@ public class SimplexStorageStructure {
         }
         Collections.sort(simplices);
         return simplices;
+    }
+
+    public List<IntTuple> gridSequence(int dim){
+        return gridSequence();
+    }
+
+    public List<IntTuple> gridSequence(){
+        return GridIterator.getSequence(gridSize);
+    }
+
+    public List<IntTuple> getAdjacent(IntTuple v){
+        List<IntTuple> basis = IntTuple.getStandardBasisSequence(v.length());
+        List<IntTuple> ret = new ArrayList<>();
+        for(int i=0;i<basis.size();i++){
+            ret.add(v.minus(basis.get(i)));
+        }
+        return ret;
     }
 
     public int getNumberOfVertices(){
@@ -152,6 +170,11 @@ public class SimplexStorageStructure {
             simplexStorageStructure.addElement(new Simplex(index, vertices.size()-1), new IntTuple(filtrationIndex));
         }
         return simplexStorageStructure;
+    }
+
+    public void clearSimplices(){
+        simplexContainer = new Int2ObjectOpenHashMap();
+        index_lookup = new ArrayList<>();
     }
 
     @Override

@@ -145,6 +145,7 @@ public class GridIterator implements Iterator<IntTuple> {
         if(max < s) return new ArrayList<>();
         List<IntTuple> seq = new ArrayList<>();
         while(true){
+            int rem = s;
             IntTuple t = new IntTuple(size);
 
         }

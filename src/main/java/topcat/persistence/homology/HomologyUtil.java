@@ -24,24 +24,24 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import topcat.matrix.BVector;
 import topcat.matrix.Column;
 import topcat.matrix.GradedColumn;
 import topcat.persistence.functor.Functor;
 import topcat.persistence.functor.Nat;
+import topcat.persistence.functor.SparseFunctor;
 import topcat.persistence.functor.exception.MalformedFunctorException;
 import topcat.matrix.BMatrix;
 import topcat.matrix.exception.NoSolutionException;
 import topcat.matrix.exception.WrongDimensionException;
 import topcat.persistence.simplex.Simplex;
 import topcat.persistence.simplex.SimplexStorageStructure;
-import topcat.util.Grid;
-import topcat.util.GridIterator;
-import topcat.util.IntTuple;
-import topcat.util.Pair;
+import topcat.persistence.simplex.SparseSimplexStorageStructure;
+import topcat.util.*;
+import topcat.util.paralelliterator.ParalellIntIterator;
 import topcat.util.paralelliterator.ParalellIterator;
 
 import java.util.*;
-import java.util.concurrent.*;
 
 /**
  * Tools for computing the homology of a multifiltration.
@@ -70,24 +70,6 @@ public class HomologyUtil {
             }
         }
         return A;
-    }
-
-    /**
-     * Finds indices where the chain complex does not change so we don't have to compute it's homology
-     * @return
-     */
-    private static int findInvariantDimension(IntTuple v, List<Grid<List<GradedColumn<Simplex>>>> columns_grid){
-        List<IntTuple> basis = IntTuple.getStandardBasisSequence(v.length());
-        for(int i=0;i<basis.size();i++){
-            boolean is_invariant = true;
-            for(int j=0;j<columns_grid.size();j++){
-                if(columns_grid.get(j).get(v) != null || columns_grid.get(j).get(v.minus(basis.get(i)))!= null){
-                    is_invariant = false;
-                }
-            }
-            if(is_invariant) return i;
-        }
-        return -1;
     }
 
     private static  Simplex pop_local_pivot(PriorityQueue<Simplex> column){
@@ -152,51 +134,60 @@ public class HomologyUtil {
         }
     }
 
+
     public static List<Grid<List<GradedColumn<Simplex>>>> chunk_reduction(final SimplexStorageStructure simplexStorageStructure, IntTuple size, final int maxDimension){
 
-        log.debug("Starting to compute local pairs");
+        log.debug("Starting to compute local pairs...");
         //Compute local pairs
-        new ParalellIterator<IntTuple, Void>(GridIterator.getSequence(size)){
+        for(int dim = 0; dim<maxDimension;dim++) {
+            final int dimension = dim;
+            new ParalellIterator<IntTuple, Void>(simplexStorageStructure.gridSequence(dim)) {
                 @Override
                 public Void method(IntTuple index) {
-                    for(int dim = 0; dim<maxDimension;dim++){
-                        List<Simplex> simplices = simplexStorageStructure.getSimplicesAt(maxDimension-dim, index);
-                        Collections.sort(simplices);
-                        compute_local_pairs_h(simplices, simplexStorageStructure, index);
-                    }
+                    List<Simplex> simplices = simplexStorageStructure.getSimplicesAt(maxDimension - dimension, index);
+                    Collections.sort(simplices);
+                    compute_local_pairs_h(simplices, simplexStorageStructure, index);
                     return null;
-            }
-        }.run();
+                }
+            }.run();
+        }
 
         log.debug("Finished local pair computation.");
         log.debug("Starting global column red...");
 
+        List<List<Pair<IntTuple, List<GradedColumn<Simplex>>>>> global_columns_grid = new ArrayList<>();
         //Compute global columns
-        List<Pair<IntTuple, List<List<GradedColumn<Simplex>>>>> global_columns_grid = new ParalellIterator<IntTuple, List<List<GradedColumn<Simplex>>>>(GridIterator.getSequence(size)){
-            @Override
-            public List<List<GradedColumn<Simplex>>> method(IntTuple index) {
-                List<List<GradedColumn<Simplex>>> g_columns_v = new ArrayList<>();
-                for(int dim=maxDimension;dim>0;dim--) {
-                    List<Simplex> simplices = simplexStorageStructure.getSimplicesAt(dim, index);
+        for(int dim=maxDimension;dim>0;dim--) {
+            final int dimension = dim;
+            global_columns_grid.add(new ParalellIterator<IntTuple, List<GradedColumn<Simplex>>>(simplexStorageStructure.gridSequence(dimension)) {
+                @Override
+                public List<GradedColumn<Simplex>> method(IntTuple index) {
+                    List<Simplex> simplices = simplexStorageStructure.getSimplicesAt(dimension, index);
+                    if(index.equals(new IntTuple(19, 97))){
+                        log.error("error");
+                    }
                     Collections.sort(simplices);
                     List<GradedColumn<Simplex>> global_columns = compute_global_columns(simplices, simplexStorageStructure);
-                    g_columns_v.add(global_columns);
+                    log.debug("Dim: "+dimension+" Simplices: "+simplices.size()+" Number of global columns: "+global_columns.size()+" in grade: "+index);
+                    if(index.equals(new IntTuple(19, 97))){
+                        log.error("error");
+                    }
+                    return global_columns;
                 }
-                Collections.reverse(g_columns_v);
-                return g_columns_v;
-            }
-        }.run();
+            }.run());
+        }
+        log.debug("Finished computing global columns.");
 
         List<Grid<List<GradedColumn<Simplex>>>> global_columns = new ArrayList<>();
-        for(int i=0;i<maxDimension;i++){
-            global_columns.add(Grid.create(size));
-        }
-        for(Pair<IntTuple, List<List<GradedColumn<Simplex>>>> g_columns : global_columns_grid){
-            for(int i=0;i<maxDimension;i++){
-                global_columns.get(i).set(g_columns._1(), g_columns._2().get(i));
+
+        for(int i=0;i<global_columns_grid.size();i++){
+            global_columns.add(simplexStorageStructure.getClass().equals(SparseSimplexStorageStructure.class) ? new SparseGrid<>(size) : Grid.create(size));
+            for(int j=0;j<global_columns_grid.get(i).size();j++){
+                global_columns.get(i).set(global_columns_grid.get(i).get(j)._1(), global_columns_grid.get(i).get(j)._2());
             }
         }
 
+        Collections.reverse(global_columns);
         return global_columns;
     }
 
@@ -231,10 +222,120 @@ public class HomologyUtil {
                     break;
                 }
             }
-            if(global_column.size() > 0)
-                global_columns.add(global_column);
+            global_columns.add(global_column);
         }
         return global_columns;
+    }
+
+
+    public static Pair<List<GradedColumn<Simplex>>, List<GradedColumn<Simplex>>> reduce_matrix(List<GradedColumn<Simplex>> columns_to_reduce, HashMap<Simplex, GradedColumn<Simplex>> pivot_column_index){
+        if(columns_to_reduce == null) return new Pair<>(new ArrayList<>(), new ArrayList<>());
+        List<GradedColumn<Simplex>> kernel = new ArrayList<>();
+        List<GradedColumn<Simplex>> image = new ArrayList<>();
+        for(int index_column_to_reduce = 0; index_column_to_reduce<columns_to_reduce.size();index_column_to_reduce++) {
+            Column<Simplex> working_boundary= new Column<>();
+            GradedColumn<Simplex> working_reduction = new GradedColumn<>(columns_to_reduce.get(index_column_to_reduce).getGrade());
+            working_reduction.add(columns_to_reduce.get(index_column_to_reduce).getGrade());
+            working_boundary.addAll(columns_to_reduce.get(index_column_to_reduce));
+            Simplex pivot = working_boundary.get_pivot();
+            while(true) {
+                if (pivot != null) {
+                    if (pivot_column_index.containsKey(pivot)) {
+                        working_reduction.add(pivot_column_index.get(pivot).getGrade());
+                        working_boundary.addAll(pivot_column_index.get(pivot));
+                        pivot = working_boundary.get_pivot();
+                    } else {
+                        pivot_column_index.put(pivot, columns_to_reduce.get(index_column_to_reduce));
+                        image.add(columns_to_reduce.get(index_column_to_reduce));
+                        break;
+                    }
+                }else{
+                    kernel.add(working_reduction);
+                    break;
+                }
+            }
+        }
+        return new Pair<>(kernel, image);
+    }
+
+    public static List<GradedColumn<Simplex>> basisChange(List<GradedColumn<Simplex>> columns_to_reduce, HashMap<Simplex, GradedColumn<Simplex>> pivot_column_index){
+        if(columns_to_reduce == null || columns_to_reduce.size() == 0) return new ArrayList<>();
+
+        List<Pair<Integer, GradedColumn<Simplex>>> kernel = new ParalellIntIterator<GradedColumn<Simplex>>(0, columns_to_reduce.size()) {
+            @Override
+            public GradedColumn<Simplex> method(Integer index_column_to_reduce) {
+                Column<Simplex> working_boundary= new Column<>();
+                GradedColumn<Simplex> working_reduction = new GradedColumn<>(columns_to_reduce.get(index_column_to_reduce).getGrade());
+                working_reduction.add(columns_to_reduce.get(index_column_to_reduce).getGrade());
+                working_boundary.addAll(columns_to_reduce.get(index_column_to_reduce));
+                Simplex pivot = working_boundary.get_pivot();
+                while(true) {
+                    if (pivot != null) {
+                        if (!pivot_column_index.containsKey(pivot)) throw new AssertionError();
+                        working_reduction.add(pivot_column_index.get(pivot).getGrade());
+                        working_boundary.addAll(pivot_column_index.get(pivot));
+                        pivot = working_boundary.get_pivot();
+                    }else{
+                        return working_reduction;
+                    }
+                }
+            }
+        }.run();
+
+        Collections.sort(kernel, new Comparator<Pair<Integer, GradedColumn<Simplex>>>() {
+            @Override
+            public int compare(Pair<Integer, GradedColumn<Simplex>> o1, Pair<Integer, GradedColumn<Simplex>> o2) {
+                return o1._1().compareTo(o2._1());
+            }
+        });
+        List<GradedColumn<Simplex>> ret = new ArrayList<>(columns_to_reduce.size());
+        for(Pair<Integer, GradedColumn<Simplex>> pair : kernel)
+            ret.add(pair._2());
+        return ret;
+    }
+
+    public static HashMap<Simplex, GradedColumn<Simplex>> mergePivots(List<HashMap<Simplex, GradedColumn<Simplex>>> pivot_cols){
+        if(pivot_cols == null || pivot_cols.size() == 0) return new HashMap<>();
+        HashMap<Simplex, GradedColumn<Simplex>> main_map = pivot_cols.get(0);
+        int k = 0;
+        for(int i=1;i<pivot_cols.size();i++){
+            if(pivot_cols.get(i).size()>main_map.size()){
+                main_map = pivot_cols.get(i);
+                k = i;
+            }
+        }
+        HashMap<Simplex, GradedColumn<Simplex>> pivot_col = new HashMap<>();
+        pivot_col.putAll(main_map);
+        List<GradedColumn<Simplex>> columns = new ArrayList<>();
+        for(int i=0;i<pivot_cols.size();i++){
+            if(i!=k)
+                columns.addAll(pivot_cols.get(i).values());
+        }
+
+        Collections.sort(columns);
+        pivots(columns, pivot_col);
+        return pivot_col;
+    }
+
+    public static List<Pair<Simplex, Integer>> pivots(List<GradedColumn<Simplex>> columns_to_reduce, HashMap<Simplex, GradedColumn<Simplex>> pivot_column_index){
+        if(columns_to_reduce == null) return null;
+        List<Pair<Simplex, Integer>> pivot_columns = new ArrayList<>();
+        for(int index_column_to_reduce = 0; index_column_to_reduce<columns_to_reduce.size();index_column_to_reduce++) {
+            Column<Simplex> working_boundary= new Column<>();
+            working_boundary.addAll(columns_to_reduce.get(index_column_to_reduce));
+            Simplex pivot = working_boundary.get_pivot();
+            while(pivot != null) {
+                if (pivot_column_index.containsKey(pivot)) {
+                    working_boundary.addAll(pivot_column_index.get(pivot));
+                    pivot = working_boundary.get_pivot();
+                } else {
+                    pivot_column_index.put(pivot, columns_to_reduce.get(index_column_to_reduce));
+                    pivot_columns.add(new Pair<>(pivot, index_column_to_reduce));
+                    break;
+                }
+            }
+        }
+        return pivot_columns;
     }
 
 
@@ -249,17 +350,11 @@ public class HomologyUtil {
     public static List<Functor> computeHomologyFunctors(final SimplexStorageStructure simplexStorageStructure, final IntTuple size, final int maxDimension) throws MalformedFunctorException, NoSolutionException{
         log.debug("Starting to compute homology functors...");
 
-        //The natural transformations from the chain functors to a basis change of the chain modules
-        final List<Nat> naturalTransformation = new ArrayList<>();
-        final List<Nat> naturalTransformation_inverse = new ArrayList<>();
-
         //The persistence modules, i.e homology of the multifiltration
         List<Functor> homfunctors = new ArrayList<>();
 
         for(int k=0;k<maxDimension;k++){
-            naturalTransformation.add(new Nat(size));
-            naturalTransformation_inverse.add(new Nat(size));
-            homfunctors.add(new Functor(size));
+            homfunctors.add(new SparseFunctor(size));
         }
 
         //The dimension of the basis for the homology in C(v) for each v in N^r
@@ -269,114 +364,352 @@ public class HomologyUtil {
         }
 
         log.debug("Starting to compute basis change in each position...");
-        int n_threads = 2*(Runtime.getRuntime().availableProcessors() < 5 ? 5 : Runtime.getRuntime().availableProcessors());
-        ExecutorService exec = Executors.newFixedThreadPool(n_threads);
-        List<Future> futures = new ArrayList<>();
-        List<HomologyWorker> workers = new ArrayList<>();
-        List<Pair<IntTuple, IntTuple>> invariantIndices = new ArrayList<>();
 
         //Chunk reduction
         List<Grid<List<GradedColumn<Simplex>>>> columns_grid = chunk_reduction(simplexStorageStructure, size, maxDimension);
+
+        //Filter out the local dim 0 simplices
+        Grid<List<GradedColumn<Simplex>>> basis_0_grid = new SparseGrid<>(size);
+        List<Pair<IntTuple, List<GradedColumn<Simplex>>>> basis_res = new ParalellIterator<IntTuple, List<GradedColumn<Simplex>>>(simplexStorageStructure.gridSequence(0)) {
+            @Override
+            public List<GradedColumn<Simplex>> method(IntTuple index) {
+                List<GradedColumn<Simplex>> basis = new ArrayList<>();
+                for(Simplex s : simplexStorageStructure.getSimplicesAt(0, index)) {
+                    if (s.local == 0) {
+                        GradedColumn<Simplex> column = new GradedColumn<>(s);
+                        basis.add(column);
+                    }
+                }
+                return basis;
+            }
+        }.run();
+
+        simplexStorageStructure.clearSimplices();
+
+        for(Pair<IntTuple, List<GradedColumn<Simplex>>> pair : basis_res)
+            basis_0_grid.set(pair._1(), pair._2());
+
         List<Grid<List<Simplex>>> basis_grid = new ArrayList<>();
         for(int i=0;i<maxDimension;i++){
             basis_grid.add(Grid.create(size));
         }
 
-        HashMap<IntTuple, HomologyWorker> workerMap = new HashMap<>();
+        //Remove dim-0 simplices from simplex storage structure
 
-        //Compute homology basis and basis change maps
-        for(IntTuple v : GridIterator.getSequence(size)){
-            int invariantDim = findInvariantDimension(v, columns_grid);
-            if(invariantDim == -1) {
-                HomologyWorker worker = new HomologyWorker(simplexStorageStructure, columns_grid, v, maxDimension);
-                workerMap.put(v, worker);
-                workers.add(worker);
-                futures.add(exec.submit(worker));
-            }else{
-                log.debug("Invariant index: "+v);
-                invariantIndices.add(new Pair<>(v, v.minus(IntTuple.getStandardBasisElement(v.length(), invariantDim))));
+
+
+
+        //Sequential reduction
+        Grid<List<HashMap<Simplex, GradedColumn<Simplex>>>> pivot_to_column_grid = new SparseGrid<>(size);
+        Grid<List<List<GradedColumn<Simplex>>>> kernel_grid = new SparseGrid<>(size);
+        Grid<List<HashSet<GradedColumn<Simplex>>>> image_grid = new SparseGrid<>(size);
+
+        ((SparseSimplexStorageStructure)simplexStorageStructure).preparePoset1();
+
+        List<IntTuple> indices = simplexStorageStructure.gridSequence();
+
+        Collections.sort(indices, new Comparator<IntTuple>() {
+            @Override
+            public int compare(IntTuple o1, IntTuple o2) {
+                if(o1.lt(o2)) return -1;
+                if(o2.lt(o1)) return 1;
+                if(o1.lexLt(o2)) return -1;
+                if(o2.lexLt(o1)) return 1;
+                return 0;
             }
-        }
-        exec.shutdown();
-
-        while(!exec.isTerminated()){
-            try{
-                exec.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-            }catch (InterruptedException ire){
-                log.error("Failed to terminate executor service.", ire);
-            }
-        }
-        try {
-            for (Future future : futures) {
-                future.get();
-            }
-        }catch (InterruptedException ire){
-            log.error("Failed to terminate executor service.", ire);
-        }catch (ExecutionException exe){
-            log.error("Failed to terminate executor service.", exe);
-        }
-
-        for(HomologyWorker worker : workers){
-            for(int k=0;k<maxDimension;k++){
-                homologyDimension.get(k).set(worker.v, worker.homologyDimension[k]);
-                naturalTransformation.get(k).setMap(worker.v, worker.naturalTransformation[k]);
-                naturalTransformation_inverse.get(k).setMap(worker.v, worker.naturalTransformation_inverse[k]);
-            }
-        }
-//        for(Pair<IntTuple, IntTuple> p : invariantIndices){
-//            for(int k=0;k<maxDimension;k++){
-//                homologyDimension.get(k).set(p._1(), homologyDimension.get(k).get(p._2()));
-//                naturalTransformation.get(k).setMap(p._1(), new BMatrix(naturalTransformation.get(k).getMap(p._2())));
-//                naturalTransformation_inverse.get(k).setMap(p._1(), new BMatrix(naturalTransformation_inverse.get(k).getMap(p._2())));
-//            }
-//        }
-        log.debug("Finished computing basis change.");
+        });
 
 
-        List<Functor> chainFunctors = new ArrayList<>();
+        for(IntTuple v : indices){
+            pivot_to_column_grid.set(v, new ArrayList<>());
+            kernel_grid.set(v, new ArrayList<>());
+            image_grid.set(v, new ArrayList<>());
+            for(int i = 0 ; i<maxDimension;i++){
+                //Fetch global columns and sort
+                List<GradedColumn<Simplex>> columns = columns_grid.get(i).get(v) == null ? new ArrayList<>() : new ArrayList<>(columns_grid.get(i).get(v));
+                Collections.sort(columns);
 
-        log.debug("Starting to apply basis change...");
-        for(int k=0;k<homfunctors.size();k++){
-            Functor H = homfunctors.get(k);
-            Functor C = new Functor(size);
-            for(IntTuple v : GridIterator.getSequence(size)){
-                List<Simplex> currentSimplices = workerMap.get(v).basis.get(k);
-                for(int i=0;i<v.length();i++){
-                    BMatrix inclusionMap;
-                    if(workerMap.containsKey(v.plus(IntTuple.getStandardBasisElement(v.length(), i))))
-                        inclusionMap = computeInclusionMap(currentSimplices, workerMap.get(v.plus(IntTuple.getStandardBasisElement(v.length(), i))).basis.get(k));
-                    else
-                        inclusionMap = BMatrix.identity(currentSimplices.size());
-                    C.setMap(v, inclusionMap, i);
-                    if(v.get(i).equals(size.get(i))){
-                        H.setMap(v, BMatrix.identity(naturalTransformation.get(k).getMap(v).rows), i);
-                    }else{
-                        H.setMap(v, inclusionMap.mult(naturalTransformation_inverse.get(k).getMap(v)), i);
-                    }
-                    if(v.get(i) > 0){
-                        IntTuple w = v.minus(IntTuple.getStandardBasisElement(v.length(), i));
-                        BMatrix hmap = H.getMap(w, i);
-                        BMatrix natmap = naturalTransformation.get(k).getMap(v);
-                        H.setMap(w, natmap.mult(hmap), i);
+                if(columns.size() > 0)
+                    log.debug("Number of global columns: "+columns.size()+" of dim: "+i);
+
+                //Record the grades of the global columns. This is the basis of the reduced chain complex at this index
+                if(i<maxDimension-1) {
+                    basis_grid.get(i).set(v, new ArrayList<>());
+                    for (int j = 0; j < columns.size(); j++) {
+                        basis_grid.get(i).get(v).add(columns.get(j).getGrade());
                     }
                 }
-            }
-            chainFunctors.add(C);
-        }
-        log.debug("Finished applying basis change.");
 
-        log.debug("Starting verification...");
-        for(int k=0;k<maxDimension;k++){
-            Functor.verify(homfunctors.get(k));
-            log.debug("Basis change dimension "+k+" OK.");
-            Nat.verify(chainFunctors.get(k), homfunctors.get(k), naturalTransformation.get(k));
-            log.debug("Basis change map dimension "+k+" OK.");
-            Pair<Functor, Nat> gnat = homfunctors.get(k).getSubFunctor(homologyDimension.get(k));
-            Functor.verify(gnat._1());
-            log.debug("Homology functor dimension "+k+" OK.");
-            homfunctors.set(k, gnat._1());
+                //Prepare the kernel and image of previous index
+                List<HashMap<Simplex, GradedColumn<Simplex>>> prev_pivots = new ArrayList<>(); //The pivots of the prev neighbours
+                List<IntTuple> prev_v = simplexStorageStructure.getAdjacent(v); //The prev neighbours
+                HashSet<GradedColumn<Simplex>> image = new HashSet<>();
+                for(IntTuple w : prev_v){
+                    prev_pivots.add(pivot_to_column_grid.get(w).get(i));
+                    image.addAll(image_grid.get(w).get(i));
+                }
+
+                HashMap<Simplex, GradedColumn<Simplex>> pivot_to_columns = new HashMap<>(); //The pivots we'll use for reduction
+                int k = 0;
+                List<GradedColumn<Simplex>> non_red_image = new ArrayList<>();
+                if(prev_pivots.size()>0) { //If we have more than one neighbour we need to merge pivots
+                    //Choose the biggest pivot set as reference
+                    HashMap<Simplex, GradedColumn<Simplex>> main_map = prev_pivots.get(0);
+                    for (int j = 1; j < prev_pivots.size(); j++) {
+                        if (prev_pivots.get(j).size() > main_map.size()) {
+                            main_map = prev_pivots.get(j);
+                            k = j;
+                        }
+                    }
+                    HashSet<GradedColumn<Simplex>> reduced = new HashSet<>();
+                    reduced.addAll(main_map.values());
+
+                    for (int j = 0; j < prev_pivots.size(); j++) {
+                        if (j != k) {
+                            for (GradedColumn<Simplex> column : prev_pivots.get(j).values()) {
+                                if (!reduced.contains(column)) {
+                                    reduced.add(column);
+                                    non_red_image.add(column);
+                                }
+                            }
+                        }
+                    }
+                    pivot_to_columns.putAll(main_map);
+                }
+
+                if(columns.size() > 0)
+                    log.debug("Number of pivots: "+pivot_to_columns.size());
+
+                Pair<List<GradedColumn<Simplex>>, List<GradedColumn<Simplex>>> off_kernel = reduce_matrix(non_red_image, pivot_to_columns);
+                Pair<List<GradedColumn<Simplex>>, List<GradedColumn<Simplex>>> kerim = reduce_matrix(columns, pivot_to_columns);
+
+                //Add off kernel elements to kernel set
+                kerim._1().addAll(off_kernel._1());
+
+                //Add previous kernel elements to kernel
+                HashSet<GradedColumn<Simplex>> p_kernel_cols = new HashSet<>();
+                p_kernel_cols.addAll(kerim._1());
+                for(int j=0;j<prev_v.size();j++){
+                    for(GradedColumn<Simplex> column : kernel_grid.get(prev_v.get(j)).get(i)){
+                        if(!p_kernel_cols.contains(column)){
+                            p_kernel_cols.add(column);
+                            kerim._1().add(column);
+                        }
+                    }
+                }
+
+
+                //If i>0 we can express the image in the kernel basis
+                if(i>0) {
+                    HashMap<Simplex, GradedColumn<Simplex>> kernel_pivs = new HashMap<>();
+                    List<GradedColumn<Simplex>> kernel = kernel_grid.get(v).get(kernel_grid.get(v).size()-1);
+                    pivots(kernel, kernel_pivs);
+                    List<GradedColumn<Simplex>> image_s = basisChange(kerim._2(), kernel_pivs);
+                    image.addAll(image_s);
+                    if(image.size()>kernel.size()){
+                        log.error("error");
+                    }
+                }else {
+                    image.addAll(kerim._2());
+                }
+
+                pivot_to_column_grid.get(v).add(pivot_to_columns);
+                kernel_grid.get(v).add(kerim._1());
+                image_grid.get(v).add(image);
+            }
         }
-        log.debug("Finished verification.");
+
+
+        log.debug("Finished reduction.");
+
+        log.debug("Starting homology basis computation...");
+
+        Grid<List<List<GradedColumn<Simplex>>>> homology_grid = new SparseGrid<>(size);
+        Grid<List<Integer>> homology_dim_grid = new SparseGrid<>(size);
+
+
+        for(IntTuple v : indices){
+            //log.debug("Starting reduction in grade: "+v);
+            List<Pair<Integer, Pair<Integer , List<GradedColumn<Simplex>>>>> tt = new ArrayList<>();
+            for(int i = 0 ; i<maxDimension;i++){
+                List<GradedColumn<Simplex>> image = new ArrayList<>(image_grid.get(v).get(i));
+                Collections.sort(image);
+
+                List<IntTuple> prev_v = simplexStorageStructure.getAdjacent(v);
+
+                //Prepare kernel basis
+                List<GradedColumn<Simplex>> kernel_basis;
+                if(i==0){
+                    HashSet<GradedColumn<Simplex>> kernel_hashset = new HashSet<>();
+                    if(basis_0_grid.get(v) == null) basis_0_grid.set(v, new ArrayList<>());
+                    kernel_hashset.addAll(basis_0_grid.get(v));
+                    for(IntTuple w : prev_v){
+                        kernel_hashset.addAll(basis_0_grid.get(w));
+                    }
+                    kernel_basis = new ArrayList<>(kernel_hashset);
+                    Collections.sort(kernel_basis);
+                    basis_0_grid.set(v, kernel_basis);
+                }else{
+                    kernel_basis = kernel_grid.get(v).get(i-1);
+                }
+                Object2IntOpenHashMap<Simplex> index_map = new Object2IntOpenHashMap<>();
+                int j = 0;
+                for(GradedColumn<Simplex> column : kernel_basis){
+                    index_map.put(column.getGrade(), j++);
+                }
+
+                List<Pair<Simplex, Integer>> image_pivots = pivots(image, new HashMap<>());
+                List<GradedColumn<Simplex>> red_image = new ArrayList<>();
+                for(Pair<Simplex, Integer> pivot_pair : image_pivots)
+                    red_image.add(image.get(pivot_pair._2()));
+
+                int image_size = red_image.size();
+
+                if (image_size > kernel_basis.size()) throw new AssertionError();
+
+                //Extend basis
+                for(j=0;j<kernel_basis.size();j++){
+                    GradedColumn<Simplex> column = new GradedColumn<>(new Simplex(Long.MAX_VALUE, i));
+                    column.add(kernel_basis.get(j).getGrade());
+                    red_image.add(column);
+                }
+
+                HashMap<Simplex, GradedColumn<Simplex>> pivs = new HashMap<>();
+                List<Pair<Simplex, Integer>> pivotlist = pivots(red_image, pivs);
+
+                List<GradedColumn<Simplex>> homologybasis = new ArrayList<>();
+
+                int homology_basis_size = pivs.size()-image_size;
+
+                int k = 0;
+                for(j=image_size;j<pivotlist.size();j++){
+                    GradedColumn<Simplex> column = new GradedColumn<>(new Simplex(k++, i));
+                    GradedColumn<Simplex> image_column = red_image.get(pivotlist.get(j)._2());
+                    while(!image_column.isEmpty()){
+                        column.addAll(kernel_basis.get(index_map.getInt(image_column.pop_pivot())));
+                    }
+                    homologybasis.add(column);
+                }
+                for(j=0;j<image_size;j++){
+                    GradedColumn<Simplex> column = new GradedColumn<>(new Simplex(k++, i));
+                    GradedColumn<Simplex> image_column = red_image.get(pivotlist.get(j)._2());
+                    while(!image_column.isEmpty()){
+                        column.addAll(kernel_basis.get(index_map.getInt(image_column.pop_pivot())));
+                    }
+                    homologybasis.add(column);
+                }
+                tt.add(new Pair<>(i, new Pair<>(homology_basis_size, homologybasis)));
+            }
+
+            List<List<GradedColumn<Simplex>>> homology_basis = new ArrayList<>();
+            List<Integer> homology_dims = new ArrayList<>();
+            for(int i=0;i<maxDimension;i++){
+                homology_basis.add(new ArrayList<>());
+                homology_dims.add(0);
+            }
+            for(Pair<Integer, Pair<Integer , List<GradedColumn<Simplex>>>> pair : tt){
+                homology_basis.get(pair._1()).addAll(pair._2()._2());
+                homology_dims.set(pair._1(), pair._2()._1());
+            }
+            homology_grid.set(v, homology_basis);
+            homology_dim_grid.set(v, homology_dims);
+        }
+
+
+
+//        HashMap<IntTuple, HomologyWorker2> workerMap = new HashMap<>();
+//
+//        //Compute homology basis and basis change maps
+//        for(HomologyWorker2 worker : workers){
+//            List<List<GradedColumn<Simplex>>> images = new ArrayList<>();
+//            List<List<GradedColumn<Simplex>>> kernels = new ArrayList<>();
+//            List<List<Simplex>> basis = new ArrayList<>();
+//            for(int i=0;i<maxDimension;i++){
+//
+//                images.add(new ArrayList<>(pivot_to_column_grid.get(worker.v).get(i).values()));
+//                kernels.add(new ArrayList<>());
+//                basis.add(new ArrayList<>());
+//            }
+//            for(IntTuple w : GridIterator.getSequence(worker.v)){
+//                for(int i=0;i<maxDimension;i++)
+//                    if(kernel_grid.get(w) != null)
+//                        kernels.get(i).addAll(kernel_grid.get(w).get(i));
+//                for(Simplex s : simplexStorageStructure.getSimplicesAt(0, w)){
+//                    if(s.local == 0)
+//                        basis.get(0).add(s);
+//                }
+//                for(int i=1;i<maxDimension;i++)
+//                    if(basis_grid.get(i-1).get(w) != null)
+//                        basis.get(i).addAll(basis_grid.get(i-1).get(w));
+//            }
+//            worker.images = images;
+//            worker.kernels = kernels;
+//            worker.basis = basis;
+//            workerMap.put(worker.v, worker);
+//            //worker.run();
+//            futures.add(exec.submit(worker));
+//        }
+//        exec.shutdown();
+//
+//        while(!exec.isTerminated()){
+//            try{
+//                exec.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+//            }catch (InterruptedException ire){
+//                log.error("Failed to terminate executor service.", ire);
+//            }
+//        }
+//        try {
+//            for (Future future : futures) {
+//                future.get();
+//            }
+//        }catch (InterruptedException ire){
+//            log.error("Failed to terminate executor service.", ire);
+//        }catch (ExecutionException exe){
+//            log.error("Failed to terminate executor service.", exe);
+//        }
+//
+//        log.debug("Finished computing basis change.");
+//
+//        log.debug("Starting to apply basis change...");
+//
+//        //Glue maps
+//        List<Pair<IntTuple, List<List<Pair<IntTuple, BMatrix>>>>> h_maps = new ParalellIterator<IntTuple, List<List<Pair<IntTuple, BMatrix>>>>(indices) {
+//            @Override
+//            public List<List<Pair<IntTuple, BMatrix>>> method(IntTuple index) {
+//                List<List<Pair<IntTuple, BMatrix>>> maps = new ArrayList<>();
+//                HomologyWorker2 worker = workerMap.get(index);
+//                for(IntTuple b : simplexStorageStructure.getAdjacent(index)) {
+//                    maps.add(new ArrayList<>());
+//                    for(int i=0;i<maxDimension;i++) {
+//                        List<GradedColumn<Simplex>> homologyBasis = workerMap.get(b).naturalTransformation_inverse.get(i);
+//                        Pair<List<GradedColumn<Simplex>>, List<GradedColumn<Simplex>>> kerim = worker.reduce_matrix(homologyBasis, new HashMap<>());
+//                        BMatrix M = new BMatrix(worker.homologyDimension[i], homologyBasis.size());
+//                        for(int j=0;j<kerim._1().size();j++){
+//                            BVector row = new BVector(worker.homologyDimension[i]);
+//                            while(!kerim._1().get(j).isEmpty()){
+//                                Simplex s = kerim._1().get(j).pop_pivot();
+//                                if((int)s.getIndex() < worker.homologyDimension[i])
+//                                    row.set((int)s.getIndex(), true);
+//                            }
+//                            M.setRow(j, row);
+//                        }
+//                        maps.get(maps.size()-1).add(new Pair<>(b, M.transpose()));
+//                    }
+//                }
+//                return maps;
+//            }
+//        }.run();
+//
+//        for(Pair<IntTuple, List<List<Pair<IntTuple, BMatrix>>>> pair : h_maps){
+//            for(int i=0;i<maxDimension;i++){
+//                List<Pair<IntTuple, BMatrix>> maps = pair._2().get(i);
+//                for(int j=0;j<maps.size();j++){
+//                    homfunctors.get(i).setMap(maps.get(j)._1(), pair._1(), maps.get(j)._2());
+//                }
+//            }
+//        }
+
+        log.debug("Finished applying basis change.");
 
         log.debug("Finished computing homology functors.");
         return homfunctors;

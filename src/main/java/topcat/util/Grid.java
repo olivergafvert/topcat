@@ -22,6 +22,9 @@ package topcat.util;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Represents an n-dimensional grid for some n>0. It is implemented using
  * a hierarchy of hashmaps.
@@ -49,6 +52,14 @@ public class Grid<T> {
 
     public void set(IntTuple v, T t){
         grid.set(v, t);
+    }
+
+    public List<IntTuple> indexSet(){
+        return GridIterator.getSequence(size);
+    }
+
+    public List<IntTuple> indexSet(IntTuple v){
+        return GridIterator.getSequence(v);
     }
 
     public IntTuple size(){

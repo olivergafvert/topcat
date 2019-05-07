@@ -96,6 +96,20 @@ public class IntTuple extends Tuple<Integer>{
         return true;
     }
 
+
+    /**
+     * Returns true if this tuple is less than 'v' in the lexiographic ordering.
+     * @param v
+     * @return
+     */
+    public boolean lexLt(IntTuple v){
+        int i=0;
+        while(i<length() && get(i).equals(v.get(i))) i++;
+        if(i==length()) return false;
+        if(get(i)<v.get(i)) return true;
+        return false;
+    }
+
     /**
      * Returns true if this tuple is less than 'v' in the poset.
      * @param v
@@ -103,9 +117,9 @@ public class IntTuple extends Tuple<Integer>{
      */
     public boolean lt(IntTuple v){
         for(int i=0;i<length();i++) {
-            if (get(i) >= v.get(i)) return false;
+            if (get(i) > v.get(i)) return false;
         }
-        return true;
+        return !equals(v);
     }
 
     /**

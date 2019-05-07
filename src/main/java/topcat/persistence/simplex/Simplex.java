@@ -33,9 +33,10 @@ import java.util.List;
  * [1] - http://ripser.org
  */
 public class Simplex implements Comparable<Simplex>{
-    private final long index;
+    private long index;
     private IntTuple value;
     private final int dimension;
+    private List<Simplex> boundary;
     public int local = 0;
     public Simplex pair;
 
@@ -54,11 +55,16 @@ public class Simplex implements Comparable<Simplex>{
 
     public long getIndex(){ return index; }
 
+    public void setIndex(long index){
+        this.index = index;
+    }
+
     public int getDimension() {
         return dimension;
     }
 
     public List<Simplex> getBoundary(SimplexStorageStructure simplexStorageStructure){
+        if(this.boundary != null) return this.boundary;
         int[] vertices = get_simplex_vertices(getIndex(), getDimension(), simplexStorageStructure.getNumberOfVertices(), simplexStorageStructure.binomialCoeffTable);
         List<Simplex> boundary = new ArrayList<>();
         for(int i=0;i<vertices.length;i++){
@@ -71,6 +77,10 @@ public class Simplex implements Comparable<Simplex>{
             boundary.add(simplexStorageStructure.indexLookup(simplexStorageStructure.binomialCoeffTable.computeIndex(new_v), getDimension()-1));
         }
         return boundary;
+    }
+
+    public void setBoundary(List<Simplex> boundary){
+        this.boundary = boundary;
     }
 
     @Override
