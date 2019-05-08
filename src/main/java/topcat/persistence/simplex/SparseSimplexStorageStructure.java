@@ -296,6 +296,11 @@ public class SparseSimplexStorageStructure extends SimplexStorageStructure{
         return adjacent_map.get(v);
     }
 
+    @Override
+    public void clearSimplices(){
+        simplices = new ArrayList<>();
+    }
+
     public static SimplexStorageStructure readOFFFile(String file){
         // This will reference one line at a time
         String line;

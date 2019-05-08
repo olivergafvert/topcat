@@ -384,138 +384,149 @@ public class HomologyUtil {
             }
         }.run();
 
-        simplexStorageStructure.clearSimplices();
+
 
         for(Pair<IntTuple, List<GradedColumn<Simplex>>> pair : basis_res)
             basis_0_grid.set(pair._1(), pair._2());
 
-        List<Grid<List<Simplex>>> basis_grid = new ArrayList<>();
-        for(int i=0;i<maxDimension;i++){
-            basis_grid.add(Grid.create(size));
-        }
-
-        //Remove dim-0 simplices from simplex storage structure
 
 
-
-
-        //Sequential reduction
-        Grid<List<HashMap<Simplex, GradedColumn<Simplex>>>> pivot_to_column_grid = new SparseGrid<>(size);
-        Grid<List<List<GradedColumn<Simplex>>>> kernel_grid = new SparseGrid<>(size);
-        Grid<List<HashSet<GradedColumn<Simplex>>>> image_grid = new SparseGrid<>(size);
-
-        ((SparseSimplexStorageStructure)simplexStorageStructure).preparePoset1();
+        ((SparseSimplexStorageStructure)simplexStorageStructure).preparePoset1(); //TODO: is this saturated?
 
         List<IntTuple> indices = simplexStorageStructure.gridSequence();
 
-        Collections.sort(indices, new Comparator<IntTuple>() {
-            @Override
-            public int compare(IntTuple o1, IntTuple o2) {
-                if(o1.lt(o2)) return -1;
-                if(o2.lt(o1)) return 1;
-                if(o1.lexLt(o2)) return -1;
-                if(o2.lexLt(o1)) return 1;
-                return 0;
-            }
-        });
+        //simplexStorageStructure.clearSimplices();
 
+        HashMap<Integer, List<IntTuple>> diagonal_sequence_map = new HashMap<>();
+        for(int i=0;i<indices.size();i++){
+            int sum = indices.get(i).sum();
+            if(!diagonal_sequence_map.containsKey(sum)) diagonal_sequence_map.put(sum, new ArrayList<>());
+            diagonal_sequence_map.get(sum).add(indices.get(i));
+        }
 
-        for(IntTuple v : indices){
-            pivot_to_column_grid.set(v, new ArrayList<>());
-            kernel_grid.set(v, new ArrayList<>());
-            image_grid.set(v, new ArrayList<>());
-            for(int i = 0 ; i<maxDimension;i++){
-                //Fetch global columns and sort
-                List<GradedColumn<Simplex>> columns = columns_grid.get(i).get(v) == null ? new ArrayList<>() : new ArrayList<>(columns_grid.get(i).get(v));
-                Collections.sort(columns);
+        List<List<IntTuple>> diagonal_sequence = new ArrayList<>();
+        List<Integer> diagonal_keyset = new ArrayList<>(diagonal_sequence_map.keySet());
+        Collections.sort(diagonal_keyset);
+        for(int i=0;i<diagonal_keyset.size();i++)
+            diagonal_sequence.add(diagonal_sequence_map.get(diagonal_keyset.get(i)));
 
-                if(columns.size() > 0)
-                    log.debug("Number of global columns: "+columns.size()+" of dim: "+i);
+        //Sequential reduction
+        final Grid<List<HashMap<Simplex, GradedColumn<Simplex>>>> pivot_to_column_grid = new SparseGrid<>(size);
+        final Grid<List<List<GradedColumn<Simplex>>>> kernel_grid = new SparseGrid<>(size);
+        final Grid<List<HashSet<GradedColumn<Simplex>>>> image_grid = new SparseGrid<>(size);
+        final Grid<List<List<Simplex>>> basis_grid = new SparseGrid<>(size);
 
-                //Record the grades of the global columns. This is the basis of the reduced chain complex at this index
-                if(i<maxDimension-1) {
-                    basis_grid.get(i).set(v, new ArrayList<>());
-                    for (int j = 0; j < columns.size(); j++) {
-                        basis_grid.get(i).get(v).add(columns.get(j).getGrade());
-                    }
-                }
+        class Packet{
+            List<HashMap<Simplex, GradedColumn<Simplex>>> pivots = new ArrayList<>();
+            List<List<GradedColumn<Simplex>>> kernels = new ArrayList<>();
+            List<HashSet<GradedColumn<Simplex>>> images = new ArrayList<>();
+            List<List<Simplex>> basis = new ArrayList<>();
+        }
 
-                //Prepare the kernel and image of previous index
-                List<HashMap<Simplex, GradedColumn<Simplex>>> prev_pivots = new ArrayList<>(); //The pivots of the prev neighbours
-                List<IntTuple> prev_v = simplexStorageStructure.getAdjacent(v); //The prev neighbours
-                HashSet<GradedColumn<Simplex>> image = new HashSet<>();
-                for(IntTuple w : prev_v){
-                    prev_pivots.add(pivot_to_column_grid.get(w).get(i));
-                    image.addAll(image_grid.get(w).get(i));
-                }
+        for(int d=0;d<diagonal_sequence.size();d++) {
+            List<Pair<IntTuple, Packet>> results = new ParalellIterator<IntTuple, Packet>(diagonal_sequence.get(d)) {
+                @Override
+                public Packet method(IntTuple v) {
+                    Packet packet = new Packet();
+                    for (int i = 0; i < maxDimension; i++) {
+                        //Fetch global columns and sort
+                        List<GradedColumn<Simplex>> columns = columns_grid.get(i).get(v) == null ? new ArrayList<>() : new ArrayList<>(columns_grid.get(i).get(v));
+                        Collections.sort(columns);
 
-                HashMap<Simplex, GradedColumn<Simplex>> pivot_to_columns = new HashMap<>(); //The pivots we'll use for reduction
-                int k = 0;
-                List<GradedColumn<Simplex>> non_red_image = new ArrayList<>();
-                if(prev_pivots.size()>0) { //If we have more than one neighbour we need to merge pivots
-                    //Choose the biggest pivot set as reference
-                    HashMap<Simplex, GradedColumn<Simplex>> main_map = prev_pivots.get(0);
-                    for (int j = 1; j < prev_pivots.size(); j++) {
-                        if (prev_pivots.get(j).size() > main_map.size()) {
-                            main_map = prev_pivots.get(j);
-                            k = j;
+                        if (columns.size() > 0)
+                            log.debug("Number of global columns: " + columns.size() + " of dim: " + i);
+
+                        //Record the grades of the global columns. This is the basis of the reduced chain complex at this index
+                        if (i < maxDimension - 1) {
+                            packet.basis.add(new ArrayList<>());
+                            for (int j = 0; j < columns.size(); j++) {
+                                packet.basis.get(i).add(columns.get(j).getGrade());
+                            }
                         }
-                    }
-                    HashSet<GradedColumn<Simplex>> reduced = new HashSet<>();
-                    reduced.addAll(main_map.values());
 
-                    for (int j = 0; j < prev_pivots.size(); j++) {
-                        if (j != k) {
-                            for (GradedColumn<Simplex> column : prev_pivots.get(j).values()) {
-                                if (!reduced.contains(column)) {
-                                    reduced.add(column);
-                                    non_red_image.add(column);
+                        //Prepare the kernel and image of previous index
+                        List<HashMap<Simplex, GradedColumn<Simplex>>> prev_pivots = new ArrayList<>(); //The pivots of the prev neighbours
+                        List<IntTuple> prev_v = simplexStorageStructure.getAdjacent(v); //The prev neighbours
+                        HashSet<GradedColumn<Simplex>> image = new HashSet<>();
+                        for (IntTuple w : prev_v) {
+                            if(pivot_to_column_grid.get(w) == null){
+                                 log.debug("error");
+                            }
+                            prev_pivots.add(pivot_to_column_grid.get(w).get(i));
+                            image.addAll(image_grid.get(w).get(i));
+                        }
+
+                        HashMap<Simplex, GradedColumn<Simplex>> pivot_to_columns = new HashMap<>(); //The pivots we'll use for reduction
+                        int k = 0;
+                        List<GradedColumn<Simplex>> non_red_image = new ArrayList<>();
+                        if (prev_pivots.size() > 0) { //If we have more than one neighbour we need to merge pivots
+                            //Choose the biggest pivot set as reference
+                            HashMap<Simplex, GradedColumn<Simplex>> main_map = prev_pivots.get(0);
+                            for (int j = 1; j < prev_pivots.size(); j++) {
+                                if (prev_pivots.get(j).size() > main_map.size()) {
+                                    main_map = prev_pivots.get(j);
+                                    k = j;
+                                }
+                            }
+                            HashSet<GradedColumn<Simplex>> reduced = new HashSet<>();
+                            reduced.addAll(main_map.values());
+
+                            for (int j = 0; j < prev_pivots.size(); j++) {
+                                if (j != k) {
+                                    for (GradedColumn<Simplex> column : prev_pivots.get(j).values()) {
+                                        if (!reduced.contains(column)) {
+                                            reduced.add(column);
+                                            non_red_image.add(column);
+                                        }
+                                    }
+                                }
+                            }
+                            pivot_to_columns.putAll(main_map);
+                        }
+
+                        if (columns.size() > 0)
+                            log.debug("Number of pivots: " + pivot_to_columns.size());
+
+                        Pair<List<GradedColumn<Simplex>>, List<GradedColumn<Simplex>>> off_kernel = reduce_matrix(non_red_image, pivot_to_columns);
+                        Pair<List<GradedColumn<Simplex>>, List<GradedColumn<Simplex>>> kerim = reduce_matrix(columns, pivot_to_columns);
+
+                        //Add off kernel elements to kernel set
+                        kerim._1().addAll(off_kernel._1());
+
+                        //Add previous kernel elements to kernel
+                        HashSet<GradedColumn<Simplex>> p_kernel_cols = new HashSet<>();
+                        p_kernel_cols.addAll(kerim._1());
+                        for (int j = 0; j < prev_v.size(); j++) {
+                            for (GradedColumn<Simplex> column : kernel_grid.get(prev_v.get(j)).get(i)) {
+                                if (!p_kernel_cols.contains(column)) {
+                                    p_kernel_cols.add(column);
+                                    kerim._1().add(column);
                                 }
                             }
                         }
-                    }
-                    pivot_to_columns.putAll(main_map);
-                }
 
-                if(columns.size() > 0)
-                    log.debug("Number of pivots: "+pivot_to_columns.size());
-
-                Pair<List<GradedColumn<Simplex>>, List<GradedColumn<Simplex>>> off_kernel = reduce_matrix(non_red_image, pivot_to_columns);
-                Pair<List<GradedColumn<Simplex>>, List<GradedColumn<Simplex>>> kerim = reduce_matrix(columns, pivot_to_columns);
-
-                //Add off kernel elements to kernel set
-                kerim._1().addAll(off_kernel._1());
-
-                //Add previous kernel elements to kernel
-                HashSet<GradedColumn<Simplex>> p_kernel_cols = new HashSet<>();
-                p_kernel_cols.addAll(kerim._1());
-                for(int j=0;j<prev_v.size();j++){
-                    for(GradedColumn<Simplex> column : kernel_grid.get(prev_v.get(j)).get(i)){
-                        if(!p_kernel_cols.contains(column)){
-                            p_kernel_cols.add(column);
-                            kerim._1().add(column);
+                        //If i>0 we can express the image in the kernel basis
+                        if (i > 0) {
+                            HashMap<Simplex, GradedColumn<Simplex>> kernel_pivs = new HashMap<>();
+                            List<GradedColumn<Simplex>> kernel = packet.kernels.get(packet.kernels.size() - 1);
+                            pivots(kernel, kernel_pivs);
+                            List<GradedColumn<Simplex>> image_s = basisChange(kerim._2(), kernel_pivs);
+                            image.addAll(image_s);
+                        } else {
+                            image.addAll(kerim._2());
                         }
+                        packet.pivots.add(pivot_to_columns);
+                        packet.kernels.add(kerim._1());
+                        packet.images.add(image);
                     }
+                    return packet;
                 }
-
-
-                //If i>0 we can express the image in the kernel basis
-                if(i>0) {
-                    HashMap<Simplex, GradedColumn<Simplex>> kernel_pivs = new HashMap<>();
-                    List<GradedColumn<Simplex>> kernel = kernel_grid.get(v).get(kernel_grid.get(v).size()-1);
-                    pivots(kernel, kernel_pivs);
-                    List<GradedColumn<Simplex>> image_s = basisChange(kerim._2(), kernel_pivs);
-                    image.addAll(image_s);
-                    if(image.size()>kernel.size()){
-                        log.error("error");
-                    }
-                }else {
-                    image.addAll(kerim._2());
-                }
-
-                pivot_to_column_grid.get(v).add(pivot_to_columns);
-                kernel_grid.get(v).add(kerim._1());
-                image_grid.get(v).add(image);
+            }.run();
+            for(Pair<IntTuple, Packet> pair : results){
+                pivot_to_column_grid.set(pair._1(), pair._2().pivots);
+                kernel_grid.set(pair._1(), pair._2().kernels);
+                image_grid.set(pair._1(), pair._2().images);
+                basis_grid.set(pair._1(), pair._2().basis);
             }
         }
 
@@ -527,92 +538,95 @@ public class HomologyUtil {
         Grid<List<List<GradedColumn<Simplex>>>> homology_grid = new SparseGrid<>(size);
         Grid<List<Integer>> homology_dim_grid = new SparseGrid<>(size);
 
+        class HomologyPacket{
+            List<Integer> homology_dim = new ArrayList<>();
+            List<List<GradedColumn<Simplex>>> homologybases = new ArrayList<>();
+            List<GradedColumn<Simplex>> basis_0 = new ArrayList<>();
+        }
 
-        for(IntTuple v : indices){
-            //log.debug("Starting reduction in grade: "+v);
-            List<Pair<Integer, Pair<Integer , List<GradedColumn<Simplex>>>>> tt = new ArrayList<>();
-            for(int i = 0 ; i<maxDimension;i++){
-                List<GradedColumn<Simplex>> image = new ArrayList<>(image_grid.get(v).get(i));
-                Collections.sort(image);
+        for(int d=0;d<diagonal_sequence.size();d++) {
+            List<Pair<IntTuple, HomologyPacket>> results = new ParalellIterator<IntTuple, HomologyPacket>(diagonal_sequence.get(d)) {
+                @Override
+                public HomologyPacket method(IntTuple v) {
+                    //log.debug("Starting reduction in grade: "+v);
+                    HomologyPacket packet = new HomologyPacket();
+                    for (int i = 0; i < maxDimension; i++) {
+                        List<GradedColumn<Simplex>> image = new ArrayList<>(image_grid.get(v).get(i));
+                        Collections.sort(image);
 
-                List<IntTuple> prev_v = simplexStorageStructure.getAdjacent(v);
+                        List<IntTuple> prev_v = simplexStorageStructure.getAdjacent(v);
 
-                //Prepare kernel basis
-                List<GradedColumn<Simplex>> kernel_basis;
-                if(i==0){
-                    HashSet<GradedColumn<Simplex>> kernel_hashset = new HashSet<>();
-                    if(basis_0_grid.get(v) == null) basis_0_grid.set(v, new ArrayList<>());
-                    kernel_hashset.addAll(basis_0_grid.get(v));
-                    for(IntTuple w : prev_v){
-                        kernel_hashset.addAll(basis_0_grid.get(w));
+                        //Prepare kernel basis
+                        List<GradedColumn<Simplex>> kernel_basis;
+                        if (i == 0) {
+                            HashSet<GradedColumn<Simplex>> kernel_hashset = new HashSet<>();
+                            if (basis_0_grid.get(v) != null) kernel_hashset.addAll(basis_0_grid.get(v));
+                            for (IntTuple w : prev_v) {
+                                kernel_hashset.addAll(basis_0_grid.get(w));
+                            }
+                            kernel_basis = new ArrayList<>(kernel_hashset);
+                            Collections.sort(kernel_basis);
+                            packet.basis_0 = kernel_basis;
+                        } else {
+                            kernel_basis = kernel_grid.get(v).get(i - 1);
+                        }
+                        Object2IntOpenHashMap<Simplex> index_map = new Object2IntOpenHashMap<>();
+                        int j = 0;
+                        for (GradedColumn<Simplex> column : kernel_basis) {
+                            index_map.put(column.getGrade(), j++);
+                        }
+
+                        List<Pair<Simplex, Integer>> image_pivots = pivots(image, new HashMap<>());
+                        List<GradedColumn<Simplex>> red_image = new ArrayList<>();
+                        for (Pair<Simplex, Integer> pivot_pair : image_pivots)
+                            red_image.add(image.get(pivot_pair._2()));
+
+                        int image_size = red_image.size();
+
+                        if (image_size > kernel_basis.size()) throw new AssertionError();
+
+                        //Extend basis
+                        for (j = 0; j < kernel_basis.size(); j++) {
+                            GradedColumn<Simplex> column = new GradedColumn<>(new Simplex(Long.MAX_VALUE, i));
+                            column.add(kernel_basis.get(j).getGrade());
+                            red_image.add(column);
+                        }
+
+                        HashMap<Simplex, GradedColumn<Simplex>> pivs = new HashMap<>();
+                        List<Pair<Simplex, Integer>> pivotlist = pivots(red_image, pivs);
+
+                        List<GradedColumn<Simplex>> homologybasis = new ArrayList<>();
+
+                        int homology_basis_size = pivs.size() - image_size;
+
+                        int k = 0;
+                        for (j = image_size; j < pivotlist.size(); j++) {
+                            GradedColumn<Simplex> column = new GradedColumn<>(new Simplex(k++, i));
+                            GradedColumn<Simplex> image_column = red_image.get(pivotlist.get(j)._2());
+                            while (!image_column.isEmpty()) {
+                                column.addAll(kernel_basis.get(index_map.getInt(image_column.pop_pivot())));
+                            }
+                            homologybasis.add(column);
+                        }
+                        for (j = 0; j < image_size; j++) {
+                            GradedColumn<Simplex> column = new GradedColumn<>(new Simplex(k++, i));
+                            GradedColumn<Simplex> image_column = red_image.get(pivotlist.get(j)._2());
+                            while (!image_column.isEmpty()) {
+                                column.addAll(kernel_basis.get(index_map.getInt(image_column.pop_pivot())));
+                            }
+                            homologybasis.add(column);
+                        }
+                        packet.homology_dim.add(homology_basis_size);
+                        packet.homologybases.add(homologybasis);
                     }
-                    kernel_basis = new ArrayList<>(kernel_hashset);
-                    Collections.sort(kernel_basis);
-                    basis_0_grid.set(v, kernel_basis);
-                }else{
-                    kernel_basis = kernel_grid.get(v).get(i-1);
+                    return packet;
                 }
-                Object2IntOpenHashMap<Simplex> index_map = new Object2IntOpenHashMap<>();
-                int j = 0;
-                for(GradedColumn<Simplex> column : kernel_basis){
-                    index_map.put(column.getGrade(), j++);
-                }
-
-                List<Pair<Simplex, Integer>> image_pivots = pivots(image, new HashMap<>());
-                List<GradedColumn<Simplex>> red_image = new ArrayList<>();
-                for(Pair<Simplex, Integer> pivot_pair : image_pivots)
-                    red_image.add(image.get(pivot_pair._2()));
-
-                int image_size = red_image.size();
-
-                if (image_size > kernel_basis.size()) throw new AssertionError();
-
-                //Extend basis
-                for(j=0;j<kernel_basis.size();j++){
-                    GradedColumn<Simplex> column = new GradedColumn<>(new Simplex(Long.MAX_VALUE, i));
-                    column.add(kernel_basis.get(j).getGrade());
-                    red_image.add(column);
-                }
-
-                HashMap<Simplex, GradedColumn<Simplex>> pivs = new HashMap<>();
-                List<Pair<Simplex, Integer>> pivotlist = pivots(red_image, pivs);
-
-                List<GradedColumn<Simplex>> homologybasis = new ArrayList<>();
-
-                int homology_basis_size = pivs.size()-image_size;
-
-                int k = 0;
-                for(j=image_size;j<pivotlist.size();j++){
-                    GradedColumn<Simplex> column = new GradedColumn<>(new Simplex(k++, i));
-                    GradedColumn<Simplex> image_column = red_image.get(pivotlist.get(j)._2());
-                    while(!image_column.isEmpty()){
-                        column.addAll(kernel_basis.get(index_map.getInt(image_column.pop_pivot())));
-                    }
-                    homologybasis.add(column);
-                }
-                for(j=0;j<image_size;j++){
-                    GradedColumn<Simplex> column = new GradedColumn<>(new Simplex(k++, i));
-                    GradedColumn<Simplex> image_column = red_image.get(pivotlist.get(j)._2());
-                    while(!image_column.isEmpty()){
-                        column.addAll(kernel_basis.get(index_map.getInt(image_column.pop_pivot())));
-                    }
-                    homologybasis.add(column);
-                }
-                tt.add(new Pair<>(i, new Pair<>(homology_basis_size, homologybasis)));
+            }.run();
+            for(Pair<IntTuple, HomologyPacket> pair : results){
+                homology_dim_grid.set(pair._1(), pair._2().homology_dim);
+                homology_grid.set(pair._1(), pair._2().homologybases);
+                basis_0_grid.set(pair._1(), pair._2().basis_0);
             }
-
-            List<List<GradedColumn<Simplex>>> homology_basis = new ArrayList<>();
-            List<Integer> homology_dims = new ArrayList<>();
-            for(int i=0;i<maxDimension;i++){
-                homology_basis.add(new ArrayList<>());
-                homology_dims.add(0);
-            }
-            for(Pair<Integer, Pair<Integer , List<GradedColumn<Simplex>>>> pair : tt){
-                homology_basis.get(pair._1()).addAll(pair._2()._2());
-                homology_dims.set(pair._1(), pair._2()._1());
-            }
-            homology_grid.set(v, homology_basis);
-            homology_dim_grid.set(v, homology_dims);
         }
 
 
