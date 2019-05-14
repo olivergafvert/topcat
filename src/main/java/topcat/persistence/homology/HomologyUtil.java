@@ -153,7 +153,7 @@ public class HomologyUtil {
         }
 
         log.debug("Finished local pair computation.");
-        log.debug("Starting global column red...");
+        log.debug("Starting global column reduction...");
 
         List<List<Pair<IntTuple, List<GradedColumn<Simplex>>>>> global_columns_grid = new ArrayList<>();
         //Compute global columns
@@ -163,15 +163,8 @@ public class HomologyUtil {
                 @Override
                 public List<GradedColumn<Simplex>> method(IntTuple index) {
                     List<Simplex> simplices = simplexStorageStructure.getSimplicesAt(dimension, index);
-                    if(index.equals(new IntTuple(19, 97))){
-                        log.error("error");
-                    }
                     Collections.sort(simplices);
                     List<GradedColumn<Simplex>> global_columns = compute_global_columns(simplices, simplexStorageStructure);
-                    log.debug("Dim: "+dimension+" Simplices: "+simplices.size()+" Number of global columns: "+global_columns.size()+" in grade: "+index);
-                    if(index.equals(new IntTuple(19, 97))){
-                        log.error("error");
-                    }
                     return global_columns;
                 }
             }.run());
@@ -363,8 +356,6 @@ public class HomologyUtil {
             homologyDimension.add(Grid.create(size));
         }
 
-        log.debug("Starting to compute basis change in each position...");
-
         //Chunk reduction
         List<Grid<List<GradedColumn<Simplex>>>> columns_grid = chunk_reduction(simplexStorageStructure, size, maxDimension);
 
@@ -383,27 +374,25 @@ public class HomologyUtil {
                 return basis;
             }
         }.run();
-
-
-
         for(Pair<IntTuple, List<GradedColumn<Simplex>>> pair : basis_res)
             basis_0_grid.set(pair._1(), pair._2());
 
-
-
-        ((SparseSimplexStorageStructure)simplexStorageStructure).preparePoset1(); //TODO: is this saturated?
+        //Compute the support of image and kernel bases
+        if(simplexStorageStructure.getClass().equals(SparseSimplexStorageStructure.class))
+            ((SparseSimplexStorageStructure)simplexStorageStructure).preparePoset();
 
         List<IntTuple> indices = simplexStorageStructure.gridSequence();
 
-        //simplexStorageStructure.clearSimplices();
+        //Clear simplex storage structure
+        simplexStorageStructure.clearSimplices();
 
+        //Group supported cross-diagonal elements.
         HashMap<Integer, List<IntTuple>> diagonal_sequence_map = new HashMap<>();
         for(int i=0;i<indices.size();i++){
             int sum = indices.get(i).sum();
             if(!diagonal_sequence_map.containsKey(sum)) diagonal_sequence_map.put(sum, new ArrayList<>());
             diagonal_sequence_map.get(sum).add(indices.get(i));
         }
-
         List<List<IntTuple>> diagonal_sequence = new ArrayList<>();
         List<Integer> diagonal_keyset = new ArrayList<>(diagonal_sequence_map.keySet());
         Collections.sort(diagonal_keyset);
@@ -423,6 +412,7 @@ public class HomologyUtil {
             List<List<Simplex>> basis = new ArrayList<>();
         }
 
+        log.debug("Starting boundary matrix reduction...");
         for(int d=0;d<diagonal_sequence.size();d++) {
             List<Pair<IntTuple, Packet>> results = new ParalellIterator<IntTuple, Packet>(diagonal_sequence.get(d)) {
                 @Override
@@ -432,9 +422,6 @@ public class HomologyUtil {
                         //Fetch global columns and sort
                         List<GradedColumn<Simplex>> columns = columns_grid.get(i).get(v) == null ? new ArrayList<>() : new ArrayList<>(columns_grid.get(i).get(v));
                         Collections.sort(columns);
-
-                        if (columns.size() > 0)
-                            log.debug("Number of global columns: " + columns.size() + " of dim: " + i);
 
                         //Record the grades of the global columns. This is the basis of the reduced chain complex at this index
                         if (i < maxDimension - 1) {
@@ -449,9 +436,6 @@ public class HomologyUtil {
                         List<IntTuple> prev_v = simplexStorageStructure.getAdjacent(v); //The prev neighbours
                         HashSet<GradedColumn<Simplex>> image = new HashSet<>();
                         for (IntTuple w : prev_v) {
-                            if(pivot_to_column_grid.get(w) == null){
-                                 log.debug("error");
-                            }
                             prev_pivots.add(pivot_to_column_grid.get(w).get(i));
                             image.addAll(image_grid.get(w).get(i));
                         }
@@ -483,9 +467,6 @@ public class HomologyUtil {
                             }
                             pivot_to_columns.putAll(main_map);
                         }
-
-                        if (columns.size() > 0)
-                            log.debug("Number of pivots: " + pivot_to_columns.size());
 
                         Pair<List<GradedColumn<Simplex>>, List<GradedColumn<Simplex>>> off_kernel = reduce_matrix(non_red_image, pivot_to_columns);
                         Pair<List<GradedColumn<Simplex>>, List<GradedColumn<Simplex>>> kerim = reduce_matrix(columns, pivot_to_columns);
@@ -548,7 +529,6 @@ public class HomologyUtil {
             List<Pair<IntTuple, HomologyPacket>> results = new ParalellIterator<IntTuple, HomologyPacket>(diagonal_sequence.get(d)) {
                 @Override
                 public HomologyPacket method(IntTuple v) {
-                    //log.debug("Starting reduction in grade: "+v);
                     HomologyPacket packet = new HomologyPacket();
                     for (int i = 0; i < maxDimension; i++) {
                         List<GradedColumn<Simplex>> image = new ArrayList<>(image_grid.get(v).get(i));

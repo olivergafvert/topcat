@@ -1,14 +1,12 @@
 package topcat.persistence.simplex;
 
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import topcat.util.BinomialCoeffTable;
-import topcat.util.Grid;
 import topcat.util.IntTuple;
 import topcat.util.Pair;
 import topcat.util.paralelliterator.ParalellIntIterator;
@@ -19,7 +17,6 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
-import java.util.logging.Level;
 
 public class SparseSimplexStorageStructure extends SimplexStorageStructure{
     private static Logger log = LoggerFactory.getLogger(SparseSimplexStorageStructure.class);
@@ -96,72 +93,10 @@ public class SparseSimplexStorageStructure extends SimplexStorageStructure{
         return ret;
     }
 
-
-    public void preparePoset1(){
-        final List<IntTuple> index_seq = gridSequence();
-        log.debug("Number of indices: "+index_seq.size());
-        Collections.sort(index_seq, new Comparator<IntTuple>() {
-            @Override
-            public int compare(IntTuple o1, IntTuple o2) {
-                if(o1.lt(o2)) return -1;
-                if(o2.lt(o1)) return 1;
-                if(o1.lexLt(o2)) return -1;
-                if(o2.lexLt(o1)) return 1;
-                return 0;
-            }
-        });
-
-        long time_s = System.nanoTime();
-
-//        Int2ObjectOpenHashMap<IntOpenHashSet> leqmap = new Int2ObjectOpenHashMap<>();
-//
-//        for(int i=0;i<index_seq.size();i++){
-//            IntTuple z = index_seq.get(i);
-//            List<IntTuple> maxElements = new ArrayList<>();
-//            IntOpenHashSet visited = new IntOpenHashSet();
-//            leqmap.put(i, visited);
-//            for(int j=i-1;j>=0;j--){
-//                if(!visited.contains(j) && index_seq.get(j).leq(z)){
-//                    visited.add(j);
-//                    visited.addAll(leqmap.get(j));
-//                    maxElements.add(index_seq.get(j));
-//                }
-//            }
-//        }
-
-
-        List<Pair<Integer, List<IntTuple>>> maximalElements = new ParalellIntIterator<List<IntTuple>>(0, index_seq.size()) {
-            @Override
-            public List<IntTuple> method(Integer index) {
-                List<IntTuple> maxElements = new ArrayList<>();
-                IntTuple z = index_seq.get(index);
-                for(int i=index-1;i>=0;i--){
-                    IntTuple v = index_seq.get(i);
-                    if(v.leq(z)) {
-                        boolean shouldAdd = true;
-                        for (IntTuple w : maxElements) {
-                            if (v.leq(w))
-                                shouldAdd = false;
-                        }
-                        if (shouldAdd)
-                            maxElements.add(v);
-                    }
-                }
-                return maxElements;
-            }
-        }.run();
-
-        for(Pair<Integer, List<IntTuple>> pair : maximalElements){
-            adjacent_map.put(index_seq.get(pair._1()), pair._2());
-        }
-
-        log.debug("Time: "+(System.nanoTime()-time_s));
-    }
-
-
     public void preparePoset(){
         final List<IntTuple> index_seq = gridSequence();
         log.debug("Starting to prepare poset with "+index_seq.size()+" number of elements...");
+        long time_s = System.nanoTime();
         final List<Pair<IntTuple, List<IntTuple>>> maximalElements = paretoFrontiers(index_seq);
 
         //Saturate poset
@@ -220,6 +155,7 @@ public class SparseSimplexStorageStructure extends SimplexStorageStructure{
                 return 0;
             }
         });
+        log.debug("Time preparing poset: "+((System.nanoTime()-time_s)/1e9)+" s.");
         log.debug("Finished preparing poset with a resulting number of elements: "+grid_sequence.size());
     }
 
