@@ -586,8 +586,6 @@ public class HomologyUtil {
                         HashMap<Simplex, GradedColumn<Simplex>> kernel_pivots = new HashMap<>();
                         pivots(kernel_basis, kernel_pivots);
 
-                        red_image = basisChange(red_image, kernel_pivots);
-
                         int image_size = red_image.size();
 
                         if (image_size > kernel_basis.size()) throw new AssertionError();
