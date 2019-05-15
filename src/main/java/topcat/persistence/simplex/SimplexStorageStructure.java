@@ -113,7 +113,9 @@ public class SimplexStorageStructure {
         List<IntTuple> basis = IntTuple.getStandardBasisSequence(v.length());
         List<IntTuple> ret = new ArrayList<>();
         for(int i=0;i<basis.size();i++){
-            ret.add(v.minus(basis.get(i)));
+            IntTuple w = v.minus(basis.get(i));
+            if(w.min()>=0)
+                ret.add(v.minus(basis.get(i)));
         }
         return ret;
     }
