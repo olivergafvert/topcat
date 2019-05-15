@@ -602,7 +602,6 @@ public class HomologyUtil {
 
                         int homology_basis_size = pivotlist.size() - image_size;
 
-                        HashMap<Simplex, GradedColumn<Simplex>> basis_pivots = new HashMap<>();
                         int k = 0;
                         for (j = image_size; j < pivotlist.size(); j++) {
                             GradedColumn<Simplex> column = new GradedColumn<>(new Simplex(k++, i));
@@ -610,7 +609,6 @@ public class HomologyUtil {
                             while (!image_column.isEmpty()) {
                                 column.addAll(kernel_basis.get(index_map.getInt(image_column.pop_pivot())));
                             }
-                            basis_pivots.put(pivotlist.get(j)._1(), column);
                             homologybasis.add(column);
                         }
                         for (j = 0; j < image_size; j++) {
@@ -619,9 +617,13 @@ public class HomologyUtil {
                             while (!image_column.isEmpty()) {
                                 column.addAll(kernel_basis.get(index_map.getInt(image_column.pop_pivot())));
                             }
-                            basis_pivots.put(pivotlist.get(j)._1(), column);
                             homologybasis.add(column);
                         }
+
+                        HashMap<Simplex, GradedColumn<Simplex>> basis_pivots = new HashMap<>();
+                        pivots(homologybasis, basis_pivots);
+
+
                         packet.homology_dim.add(homology_basis_size);
                         packet.homologybases.add(homologybasis);
                         packet.kernel_pivots.add(basis_pivots);
@@ -640,6 +642,8 @@ public class HomologyUtil {
         }
 
 
+        log.debug("Finished homology basis computation.");
+        log.debug("Starting to apply basis change...");
 
 
         if(simplexStorageStructure.getClass().equals(SparseSimplexStorageStructure.class)) {
@@ -671,7 +675,7 @@ public class HomologyUtil {
                                 GradedColumn<Simplex> column = hom_trans.get(k);
                                 while(!column.isEmpty()){
                                     Simplex grade = column.pop_pivot();
-                                    if(grade.getIndex()<homologyDimension_v){
+                                    if(grade != null && grade.getIndex()<homologyDimension_v){
                                         M.set((int)grade.getIndex(), k, true);
                                     }
                                 }
@@ -688,6 +692,16 @@ public class HomologyUtil {
                     List<Pair<IntTuple, BMatrix>> maps = pair._2().get(i);
                     for(int j=0;j<maxDimension;j++){
                         homfunctors.get(j).setMap(maps.get(j)._1(), pair._1(), maps.get(j)._2());
+                    }
+                }
+                //If index is on the boundary we add identity maps
+                if(size.minus(pair._1()).min() == 0){
+                    for(int i=0;i<size.length();i++){
+                        if(size.get(i).equals(pair._1().get(i))){
+                            for(int j=0;j<maxDimension;j++){
+                                homfunctors.get(j).setMap(pair._1(), BMatrix.identity(homology_dim_grid.get(j).get(pair._1())), i);
+                            }
+                        }
                     }
                 }
             }
