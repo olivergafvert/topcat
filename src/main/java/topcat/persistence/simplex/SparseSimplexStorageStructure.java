@@ -223,6 +223,9 @@ public class SparseSimplexStorageStructure extends SimplexStorageStructure{
         log.debug("Time: "+(System.nanoTime()-time_s));
     }
 
+    public HashMap<IntTuple, List<IntTuple>> getAdjacentMap(){
+        return adjacent_map;
+    }
 
     @Override
     public List<IntTuple> getAdjacent(IntTuple v){
