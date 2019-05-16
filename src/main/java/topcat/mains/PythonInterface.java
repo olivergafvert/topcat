@@ -83,26 +83,18 @@ public class PythonInterface {
         return distanceMatrices;
     }
 
-    public static PersistenceModuleCollection computeSparsePersistenceModules(List<List<Double>> points, List<String> distances, List<List<Double>> filtrationValues, Integer maxDimension) {
+    public static PersistenceModuleCollection computePersistenceModules(List<List<Double>> points, List<String> distances, List<List<Double>> filtrationValues, Integer maxDimension, boolean sparse){
         List<Point> t_points = transformPoints(points);
         List<DistanceMatrix> _distanceMatrices = parseDistances(t_points, distances);
-        SimplexStorageStructure simplexStorageStructure = SimplicialComplex.computeSimplexStream(_distanceMatrices, filtrationValues, maxDimension, true);
+        SimplexStorageStructure simplexStorageStructure = SimplicialComplex.computeSimplexStream(_distanceMatrices, filtrationValues, maxDimension, sparse);
         PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(simplexStorageStructure, filtrationValues, maxDimension);
         return persistenceModules;
     }
 
-    public static PersistenceModuleCollection computePersistenceModules(List<List<Double>> points, List<String> distances, List<List<Double>> filtrationValues, Integer maxDimension){
-        List<Point> t_points = transformPoints(points);
-        List<DistanceMatrix> _distanceMatrices = parseDistances(t_points, distances);
-        SimplexStorageStructure simplexStorageStructure = SimplicialComplex.computeSimplexStream(_distanceMatrices, filtrationValues, maxDimension);
-        PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(simplexStorageStructure, filtrationValues, maxDimension);
-        return persistenceModules;
-    }
-
-    public static PersistenceModuleCollection computePersistenceModules(List<List<List<Double>>> distanceMatrices, List<List<Double>> filtrationValues, Integer maxDimension){
+    public static PersistenceModuleCollection computePersistenceModules(List<List<List<Double>>> distanceMatrices, List<List<Double>> filtrationValues, Integer maxDimension, boolean sparse){
         List<DistanceMatrix> _distanceMatrices = new ArrayList<>();
         for(List<List<Double>> dmat : distanceMatrices) _distanceMatrices.add(new ArrayDistanceMatrix(dmat));
-        SimplexStorageStructure simplexStorageStructure = SimplicialComplex.computeSimplexStream(_distanceMatrices, filtrationValues, maxDimension);
+        SimplexStorageStructure simplexStorageStructure = SimplicialComplex.computeSimplexStream(_distanceMatrices, filtrationValues, maxDimension, sparse);
         PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(simplexStorageStructure, filtrationValues, maxDimension);
         return persistenceModules;
     }

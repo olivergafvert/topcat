@@ -35,6 +35,7 @@ public class SparseSimplexStorageStructure extends SimplexStorageStructure{
         if(!simplices.get(simplex.getDimension()).containsKey(filtrationIndex))
             simplices.get(simplex.getDimension()).put(filtrationIndex, new ArrayList<>());
         simplices.get(simplex.getDimension()).get(filtrationIndex).add(simplex);
+        index_lookup.get(simplex.getDimension()).put(simplex.getIndex(), simplex);
     }
 
     public List<Simplex> getSimplicesAt(int dim, IntTuple filtrationIndex){
@@ -238,6 +239,7 @@ public class SparseSimplexStorageStructure extends SimplexStorageStructure{
     @Override
     public void clearSimplices(){
         simplices = new ArrayList<>();
+        index_lookup.clear();
     }
 
     public static SimplexStorageStructure readOFFFile(String file){

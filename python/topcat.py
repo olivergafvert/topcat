@@ -27,8 +27,8 @@ def persistenceModules_dist(distanceMatrices, filtrationValues, maxdim, contour=
 	
 	Returns a list of python PersistenceModule objects.
 '''
-def persistenceModules(points, distances, filtrationValues, maxdim):
-	return map(PersistenceModule, topcat.computePersistenceModules(points, distances, filtrationValues, maxdim))
+def persistenceModules(points, distances, filtrationValues, maxdim, sparse=False):
+	return map(PersistenceModule, topcat.computePersistenceModules(points, distances, filtrationValues, maxdim, sparse))
 	
 
 def stableRank_dist(distanceMatrices, filtrationValues, maxdim, contour=None):

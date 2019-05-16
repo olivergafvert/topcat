@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package topcat.persistence.homology;
 
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.slf4j.Logger;
@@ -263,7 +264,10 @@ public class HomologyUtil {
                 Simplex pivot = working_boundary.get_pivot();
                 while(true) {
                     if (pivot != null) {
-                        if (!pivot_column_index.containsKey(pivot)) throw new AssertionError();
+                        if (!pivot_column_index.containsKey(pivot)){
+                            log.error("Pivot: "+pivot+"\nColumn to reduce: "+columns_to_reduce.get(index_column_to_reduce).toString()+"\nPivot index: "+pivot_column_index.toString());
+                            throw new AssertionError();
+                        }
                         working_reduction.add(pivot_column_index.get(pivot).getGrade());
                         working_boundary.addAll(pivot_column_index.get(pivot));
                         pivot = working_boundary.get_pivot();
@@ -413,7 +417,7 @@ public class HomologyUtil {
             List<List<Simplex>> basis = new ArrayList<>();
         }
 
-        log.debug("Starting boundary matrix reduction...");
+        log.debug("Starting boundary matrix reduction ...\r");
         for(int d=0;d<diagonal_sequence.size();d++) {
             List<Pair<IntTuple, Packet>> results = new ParalellIterator<IntTuple, Packet>(diagonal_sequence.get(d)) {
                 @Override
@@ -589,10 +593,12 @@ public class HomologyUtil {
                         if (image_size > kernel_basis.size()) throw new AssertionError();
 
                         //Extend basis
+                        List<GradedColumn<Simplex>> kernel_id = new ArrayList<>();
                         for (j = 0; j < kernel_basis.size(); j++) {
-                            GradedColumn<Simplex> column = new GradedColumn<>(new Simplex(Long.MAX_VALUE, i));
+                            GradedColumn<Simplex> column = new GradedColumn<>(new Simplex(j, i));
                             column.add(kernel_basis.get(j).getGrade());
                             red_image.add(column);
+                            kernel_id.add(column);
                         }
 
                         HashMap<Simplex, GradedColumn<Simplex>> pivs = new HashMap<>();
@@ -602,22 +608,21 @@ public class HomologyUtil {
 
                         int homology_basis_size = pivotlist.size() - image_size;
 
+                        IntOpenHashSet indexset = new IntOpenHashSet();
                         int k = 0;
                         for (j = image_size; j < pivotlist.size(); j++) {
                             GradedColumn<Simplex> column = new GradedColumn<>(new Simplex(k++, i));
-                            GradedColumn<Simplex> image_column = red_image.get(pivotlist.get(j)._2());
-                            while (!image_column.isEmpty()) {
-                                column.addAll(kernel_basis.get(index_map.getInt(image_column.pop_pivot())));
-                            }
+                            int pos = (int)red_image.get(pivotlist.get(j)._2()).getGrade().getIndex();
+                            indexset.add(pos);
+                            column.addAll(kernel_basis.get(pos));
                             homologybasis.add(column);
                         }
-                        for (j = 0; j < image_size; j++) {
-                            GradedColumn<Simplex> column = new GradedColumn<>(new Simplex(k++, i));
-                            GradedColumn<Simplex> image_column = red_image.get(pivotlist.get(j)._2());
-                            while (!image_column.isEmpty()) {
-                                column.addAll(kernel_basis.get(index_map.getInt(image_column.pop_pivot())));
+                        for (j = 0; j < kernel_basis.size(); j++) {
+                            if(!indexset.contains(j)) {
+                                GradedColumn<Simplex> column = new GradedColumn<>(new Simplex(k++, i));
+                                column.addAll(kernel_basis.get(j));
+                                homologybasis.add(column);
                             }
-                            homologybasis.add(column);
                         }
 
                         HashMap<Simplex, GradedColumn<Simplex>> basis_pivots = new HashMap<>();

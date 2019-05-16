@@ -54,7 +54,7 @@ public class PythonInterfaceTest {
         filtrationValues.add(radiusFiltrationValues);
 
         int maxDimension = 2; //Compute 0th and 1 homology.
-        PersistenceModuleCollection persistenceModules = PythonInterface.computePersistenceModules(distanceMatrices, filtrationValues, maxDimension);
+        PersistenceModuleCollection persistenceModules = PythonInterface.computePersistenceModules(distanceMatrices, filtrationValues, maxDimension, false);
 
         PersistenceContour persistenceContour = new StandardContour(filtrationValues);
         StableRankFunction barcode0 = new StableRankFunction();

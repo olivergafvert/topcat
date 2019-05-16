@@ -240,7 +240,7 @@ public class SimplicialComplex {
             List<Integer> filtrationIndexes = calcFiltrationIndexes(simplices.get(i), distanceMatrices, filtrationValues, storageStructure.binomialCoeffTable);
             simplices.get(i).setValue(new IntTuple(filtrationIndexes));
             if (filtrationIndexes != null) {
-                storageStructure.addElement(simplices.get(i), new IntTuple(filtrationIndexes));
+                storageStructure.addElement(simplices.get(i), simplices.get(i).getValue());
             }else{
                 log.error("Failed to add simplex "+simplices.get(i)+" to simplex storage structure");
             }
