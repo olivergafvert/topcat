@@ -623,7 +623,6 @@ public class HomologyUtil {
                         HashMap<Simplex, GradedColumn<Simplex>> basis_pivots = new HashMap<>();
                         pivots(homologybasis, basis_pivots);
 
-
                         packet.homology_dim.add(homology_basis_size);
                         packet.homologybases.add(homologybasis);
                         packet.kernel_pivots.add(basis_pivots);

@@ -19,6 +19,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 package topcat.mains;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import py4j.GatewayServer;
 import topcat.matrix.distancematrix.ArrayDistanceMatrix;
 import topcat.matrix.distancematrix.DistanceMatrix;
@@ -32,6 +34,7 @@ import topcat.persistence.contours.kernels.KernelFunction;
 import topcat.persistence.contours.kernels.StepKernelFunction;
 import topcat.persistence.simplex.SimplexStorageStructure;
 import topcat.persistence.simplex.SimplicialComplex;
+import topcat.persistence.simplex.SparseSimplexStorageStructure;
 import topcat.persistence.stablerank.StableRankFunction;
 import topcat.util.Point;
 
@@ -43,6 +46,7 @@ import java.util.List;
  * A python interface to access topcat via python.
  */
 public class PythonInterface {
+    private static Logger log = LoggerFactory.getLogger(PythonInterface.class);
 
     public static List<Point> transformPoints(List<List<Double>> points){
         List<Point> _points = new ArrayList<>();
@@ -65,9 +69,26 @@ public class PythonInterface {
             }else if(dist.equals("euclidean_codensity")){
                 distanceMatrices.add(DistanceMatrix.computeEuclideanDistanceMatrix(points));
                 distanceMatrices.add(DistanceMatrix.codensityMatrix(distanceMatrices.get(distanceMatrices.size()-1)));
+            }else if(dist.length() == 1){
+                try{
+                    int  axis = Integer.parseInt(dist);
+                    distanceMatrices.add(DistanceMatrix.computeAxisDistanceMatrix(points, axis));
+                }catch(NumberFormatException nfe){
+                    log.debug("Could not parse distance: "+dist);
+                    log.error(nfe.toString());
+                    return null;
+                }
             }
         }
         return distanceMatrices;
+    }
+
+    public static PersistenceModuleCollection computeSparsePersistenceModules(List<List<Double>> points, List<String> distances, List<List<Double>> filtrationValues, Integer maxDimension) {
+        List<Point> t_points = transformPoints(points);
+        List<DistanceMatrix> _distanceMatrices = parseDistances(t_points, distances);
+        SimplexStorageStructure simplexStorageStructure = SimplicialComplex.computeSimplexStream(_distanceMatrices, filtrationValues, maxDimension, true);
+        PersistenceModuleCollection persistenceModules = PersistenceModuleCollection.create(simplexStorageStructure, filtrationValues, maxDimension);
+        return persistenceModules;
     }
 
     public static PersistenceModuleCollection computePersistenceModules(List<List<Double>> points, List<String> distances, List<List<Double>> filtrationValues, Integer maxDimension){

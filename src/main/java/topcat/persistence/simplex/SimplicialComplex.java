@@ -35,6 +35,7 @@ import topcat.util.BinomialCoeffTable;
 import topcat.util.IntTuple;
 import topcat.util.Pair;
 import topcat.util.Point;
+import topcat.util.paralelliterator.ParalellIterator;
 
 import java.util.*;
 
@@ -215,6 +216,10 @@ public class SimplicialComplex {
      * @return
      */
     public static SimplexStorageStructure computeSimplexStream(List<DistanceMatrix> distanceMatrices, List<List<Double>> filtrationValues, int maxDimension){
+        return computeSimplexStream(distanceMatrices, filtrationValues, maxDimension, false);
+    }
+
+    public static SimplexStorageStructure computeSimplexStream(List<DistanceMatrix> distanceMatrices, List<List<Double>> filtrationValues, int maxDimension, boolean sparse){
         //Pick out the largest filtration value in each direction
         List<Double> maxFiltrationValues = new ArrayList<>();
         for(int i=0;i<filtrationValues.size();i++){
@@ -224,7 +229,7 @@ public class SimplicialComplex {
         for(int i=0;i<filtrationValues.size();i++){
             gridSize.set(i, filtrationValues.get(i).size()-1);
         }
-        SimplexStorageStructure storageStructure = new SimplexStorageStructure(filtrationValues, gridSize, maxDimension, distanceMatrices.get(0).cols);
+        SimplexStorageStructure storageStructure = sparse ? new SparseSimplexStorageStructure(filtrationValues, gridSize, maxDimension, distanceMatrices.get(0).cols) : new SimplexStorageStructure(filtrationValues, gridSize, maxDimension, distanceMatrices.get(0).cols);
         log.debug("Starting to compute simplicial complex...");
         //Compute the Vietoris-Rips complex for the maximal filtration value
         List<Simplex> simplices = computeVietorisRipsComplex(distanceMatrices, maxFiltrationValues, maxDimension, storageStructure.binomialCoeffTable);

@@ -84,6 +84,19 @@ public abstract class DistanceMatrix {
         return edges;
     }
 
+    public static DistanceMatrix computeAxisDistanceMatrix(List<Point> points, int axis){
+        DistanceMatrix distanceMatrix = new ArrayDistanceMatrix(points.size(), points.size());
+        for(int i=0;i<points.size();i++){
+            distanceMatrix.set(i, i, 0);
+            for(int j=i+1;j<points.size();j++){
+                double d = (points.get(i).getX().get(axis) - points.get(j).getX().get(axis))*(points.get(i).getX().get(axis) - points.get(j).getX().get(axis));
+                distanceMatrix.set(i, j, d);
+                distanceMatrix.set(j, i, d);
+            }
+        }
+        return distanceMatrix;
+    }
+
     public static DistanceMatrix computeEuclideanDistanceMatrix(List<Point> points){
         DistanceMatrix distanceMatrix = new ArrayDistanceMatrix(points.size(), points.size());
         for(int i=0;i<points.size();i++){
