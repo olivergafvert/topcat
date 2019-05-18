@@ -76,6 +76,7 @@ public class Simplex implements Comparable<Simplex>{
             }
             boundary.add(simplexStorageStructure.indexLookup(simplexStorageStructure.binomialCoeffTable.computeIndex(new_v), getDimension()-1));
         }
+        this.boundary = boundary;
         return boundary;
     }
 
@@ -89,7 +90,7 @@ public class Simplex implements Comparable<Simplex>{
             return false;
         }
         Simplex simplex = (Simplex) o;
-        return this.dimension == simplex.dimension && this.index == simplex.index;
+        return this.dimension == simplex.dimension && this.index == simplex.index && (this.getValue()!=null ? this.getValue().equals(simplex.getValue()):true);
     }
 
     @Override

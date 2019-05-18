@@ -387,9 +387,8 @@ public class Functor {
                     IntTuple wp = v.plus(basis.get(j));
                     IntTuple z = w.plus(basis.get(j));
                     if(!F.getMap(w, z).mult(F.getMap(v, w)).equals(F.getMap(wp, z).mult(F.getMap(v, wp)))){
-                        System.out.println(w);
+                        throw new AssertionError("Functor does not commute.");
                     }
-                    assert(F.getMap(w, z).mult(F.getMap(v, w)).equals(F.getMap(wp, z).mult(F.getMap(v, wp))));
                 }
             }
         }

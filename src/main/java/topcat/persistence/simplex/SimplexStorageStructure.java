@@ -175,8 +175,8 @@ public class SimplexStorageStructure {
     }
 
     public void clearSimplices(){
-        simplexContainer = new Int2ObjectOpenHashMap();
-        index_lookup = new ArrayList<>();
+        simplexContainer.clear();
+        index_lookup.clear();
     }
 
     @Override
