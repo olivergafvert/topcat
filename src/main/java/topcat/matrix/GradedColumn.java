@@ -14,6 +14,10 @@ public class GradedColumn<T> extends Column<T> implements Comparable<GradedColum
         return grade;
     }
 
+    public void setGrade(Simplex grade){
+        this.grade = grade;
+    }
+
     @Override
     public int compareTo(GradedColumn<T> o) {
         return this.grade.compareTo(o.getGrade());
