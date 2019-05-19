@@ -137,6 +137,7 @@ public class HomologyUtil {
     public static List<Grid<List<GradedColumn<Simplex>>>> chunk_reduction(final SimplexStorageStructure simplexStorageStructure, IntTuple size, final int maxDimension){
 
         log.debug("Starting to compute local pairs...");
+        long time_s = System.nanoTime();
         //Compute local pairs
         for(int dim = 0; dim<maxDimension;dim++) {
             final int dimension = dim;
@@ -151,8 +152,9 @@ public class HomologyUtil {
             }.run();
         }
 
-        log.debug("Finished local pair computation.");
+        log.debug("Finished local pair computation in "+((System.nanoTime()-time_s)/1e9)+"s.");
         log.debug("Starting global column reduction...");
+        time_s = System.nanoTime();
 
         List<List<Pair<IntTuple, List<GradedColumn<Simplex>>>>> global_columns_grid = new ArrayList<>();
         //Compute global columns
@@ -168,7 +170,7 @@ public class HomologyUtil {
                 }
             }.run());
         }
-        log.debug("Finished computing global columns.");
+        log.debug("Finished computing global columns in "+((System.nanoTime()-time_s)/1e9)+"s.");
 
         List<Grid<List<GradedColumn<Simplex>>>> global_columns = new ArrayList<>();
 
@@ -311,90 +313,6 @@ public class HomologyUtil {
         return pivot_columns;
     }
 
-    public static List<Pair<Simplex, Integer>> pivots_im(List<GradedColumn<Simplex>> columns_to_reduce, HashMap<Simplex, GradedColumn<Simplex>> pivot_column_index){
-        if(columns_to_reduce == null) return null;
-        List<Pair<Simplex, Integer>> pivot_columns = new ArrayList<>();
-        for(int index_column_to_reduce = 0; index_column_to_reduce<columns_to_reduce.size();index_column_to_reduce++) {
-            Column<Simplex> working_boundary= new Column<>();
-            working_boundary.addAll(columns_to_reduce.get(index_column_to_reduce));
-            Simplex pivot = working_boundary.get_pivot();
-            while(pivot != null) {
-                if (pivot_column_index.containsKey(pivot)) {
-                    working_boundary.addAll(pivot_column_index.get(pivot));
-                    pivot = working_boundary.get_pivot();
-                } else {
-                    pivot_column_index.put(pivot, columns_to_reduce.get(index_column_to_reduce));
-                    pivot_columns.add(new Pair<>(pivot, index_column_to_reduce));
-                    break;
-                }
-            }
-        }
-        return pivot_columns;
-    }
-
-    public static List<Pair<Simplex, Integer>> pivots_im2(List<GradedColumn<Simplex>> columns_to_reduce, HashMap<Simplex, GradedColumn<Simplex>> pivot_column_index){
-        if(columns_to_reduce == null) return null;
-        List<Pair<Simplex, Integer>> pivot_columns = new ArrayList<>();
-        for(int index_column_to_reduce = 0; index_column_to_reduce<columns_to_reduce.size();index_column_to_reduce++) {
-            Column<Simplex> working_boundary= new Column<>();
-            working_boundary.addAll(columns_to_reduce.get(index_column_to_reduce));
-            Simplex pivot = working_boundary.get_pivot();
-            while(pivot != null) {
-                if (pivot_column_index.containsKey(pivot)) {
-                    working_boundary.addAll(pivot_column_index.get(pivot));
-                    pivot = working_boundary.get_pivot();
-                } else {
-                    pivot_column_index.put(pivot, columns_to_reduce.get(index_column_to_reduce));
-                    pivot_columns.add(new Pair<>(pivot, index_column_to_reduce));
-                    break;
-                }
-            }
-        }
-        return pivot_columns;
-    }
-
-    public static List<Pair<Simplex, Integer>> pivots_ker(List<GradedColumn<Simplex>> columns_to_reduce, HashMap<Simplex, GradedColumn<Simplex>> pivot_column_index){
-        if(columns_to_reduce == null) return null;
-        List<Pair<Simplex, Integer>> pivot_columns = new ArrayList<>();
-        for(int index_column_to_reduce = 0; index_column_to_reduce<columns_to_reduce.size();index_column_to_reduce++) {
-            Column<Simplex> working_boundary= new Column<>();
-            working_boundary.addAll(columns_to_reduce.get(index_column_to_reduce));
-            Simplex pivot = working_boundary.get_pivot();
-            while(pivot != null) {
-                if (pivot_column_index.containsKey(pivot)) {
-                    working_boundary.addAll(pivot_column_index.get(pivot));
-                    pivot = working_boundary.get_pivot();
-                } else {
-                    pivot_column_index.put(pivot, columns_to_reduce.get(index_column_to_reduce));
-                    pivot_columns.add(new Pair<>(pivot, index_column_to_reduce));
-                    break;
-                }
-            }
-        }
-        return pivot_columns;
-    }
-
-    public static List<Pair<Simplex, Integer>> pivots_hom(List<GradedColumn<Simplex>> columns_to_reduce, HashMap<Simplex, GradedColumn<Simplex>> pivot_column_index){
-        if(columns_to_reduce == null) return null;
-        List<Pair<Simplex, Integer>> pivot_columns = new ArrayList<>();
-        for(int index_column_to_reduce = 0; index_column_to_reduce<columns_to_reduce.size();index_column_to_reduce++) {
-            Column<Simplex> working_boundary= new Column<>();
-            working_boundary.addAll(columns_to_reduce.get(index_column_to_reduce));
-            Simplex pivot = working_boundary.get_pivot();
-            while(pivot != null) {
-                if (pivot_column_index.containsKey(pivot)) {
-                    working_boundary.addAll(pivot_column_index.get(pivot));
-                    pivot = working_boundary.get_pivot();
-                } else {
-                    pivot_column_index.put(pivot, columns_to_reduce.get(index_column_to_reduce));
-                    pivot_columns.add(new Pair<>(pivot, index_column_to_reduce));
-                    break;
-                }
-            }
-        }
-        return pivot_columns;
-    }
-
     /**
      * Computes the homology functors for each dimension less than 'maxdimension'.
      * @param simplexStorageStructure
@@ -476,10 +394,10 @@ public class HomologyUtil {
             List<HashMap<Simplex, GradedColumn<Simplex>>> pivots = new ArrayList<>();
             List<List<GradedColumn<Simplex>>> kernels = new ArrayList<>();
             List<HashSet<GradedColumn<Simplex>>> images = new ArrayList<>();
-            List<List<Simplex>> basis = new ArrayList<>();
         }
 
         log.debug("Starting boundary matrix reduction ...\r");
+        long time_s = System.nanoTime();
         for(int d=0;d<diagonal_sequence.size();d++) {
             List<Pair<IntTuple, Packet>> results = new ParalellIterator<IntTuple, Packet>(diagonal_sequence.get(d)) {
                 @Override
@@ -489,14 +407,6 @@ public class HomologyUtil {
                         //Fetch global columns and sort
                         List<GradedColumn<Simplex>> columns = columns_grid.get(i).get(v) == null ? new ArrayList<>() : new ArrayList<>(columns_grid.get(i).get(v));
                         Collections.sort(columns);
-
-                        //Record the grades of the global columns. This is the basis of the reduced chain complex at this index
-                        if (i < maxDimension - 1) {
-                            packet.basis.add(new ArrayList<>());
-                            for (int j = 0; j < columns.size(); j++) {
-                                packet.basis.get(i).add(columns.get(j).getGrade());
-                            }
-                        }
 
                         //Prepare the kernel and image of previous index
                         List<HashMap<Simplex, GradedColumn<Simplex>>> prev_pivots = new ArrayList<>(); //The pivots of the prev neighbours
@@ -534,6 +444,7 @@ public class HomologyUtil {
                             }
                             pivot_to_columns.putAll(main_map);
                         }
+                        Collections.sort(non_red_image);
 
                         Pair<List<GradedColumn<Simplex>>, List<GradedColumn<Simplex>>> off_kernel = reduce_matrix(non_red_image, pivot_to_columns);
                         for(int j=0;j<off_kernel._1().size();j++){
@@ -597,7 +508,7 @@ public class HomologyUtil {
                 basis_0_grid.set(pair._1(), pair._2());
             }
         }
-        log.debug("Finished reduction.");
+        log.debug("Finished reduction in "+((System.nanoTime()-time_s)/1e9)+"s.");
 
         log.debug("Starting homology basis computation...");
 
@@ -626,7 +537,7 @@ public class HomologyUtil {
         for(int i=0;i<maxDimension;i++) {
             final int dim = i;
 
-            long time_s = System.nanoTime();
+            time_s = System.nanoTime();
             log.debug("Computing homology dim: "+i+"...");
             List<Pair<IntTuple, HomologyPacket>> image_basis_change = new ParalellIterator<IntTuple, HomologyPacket>(indices) {
                 @Override

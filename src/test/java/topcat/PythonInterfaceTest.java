@@ -75,4 +75,23 @@ public class PythonInterfaceTest {
         StableRankFunction barcode1_test = persistenceModules.get(1).computeStableRank(persistenceModules.get(1).getFiltrationValues().get(0), persistenceContour);
         Assert.assertEquals(barcode1, barcode1_test);
     }
+
+    @Test
+    public void noisyCircleTest(){
+        List<Point> points = Point.getRandomSpherePoints(500, 2);
+        List<List<Double>> points_d = new ArrayList<>();
+        for(Point p : points) points_d.add(p.getX());
+
+        //Add filtrationvalues
+        List<List<Double>> filtrationValues = new ArrayList<>();
+        List<Double> radiusFiltrationValues = new ArrayList<>();
+        for(int i=0;i<6;i++){
+            radiusFiltrationValues.add(i*0.1);
+        }
+        filtrationValues.add(radiusFiltrationValues);
+        filtrationValues.add(Arrays.asList(new Double[]{-100.0, -50.0, -40.0, -30.0, -20.0, -15.0, -10.0, -1.0, 0.0}));
+
+        int maxDimension = 3; //Compute 0th and 1 homology.
+        PersistenceModuleCollection persistenceModules = PythonInterface.computePersistenceModules(points_d, Arrays.asList(new String[]{"euclidean_codensity"}), filtrationValues, maxDimension, false);
+    }
 }
