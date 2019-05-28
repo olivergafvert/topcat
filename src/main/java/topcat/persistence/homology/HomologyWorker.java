@@ -173,7 +173,6 @@ public class HomologyWorker implements Runnable{
         List<LongOpenHashSet> index_lookups = new ArrayList<>();
         for (int i = 0; i < chain.size(); i++) {
             List<Simplex> simplices = chain.get(i);
-            log.debug("Number of simplices of dim " + i + ": " + chain.get(i).size());
             LongOpenHashSet index_lookup = new LongOpenHashSet();
             for (Simplex s : simplices) index_lookup.add(s.getIndex());
             index_lookups.add(index_lookup);

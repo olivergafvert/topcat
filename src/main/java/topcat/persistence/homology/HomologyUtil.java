@@ -94,26 +94,6 @@ public class HomologyUtil {
         return chainFunctors;
     }
 
-    /**
-     * Finds indices where the chain complex does not change so we don't have to compute it's homology.
-     * @param v
-     * @param chainFunctorDims
-     * @return
-     */
-    private static int findInvariantDimension(IntTuple v, List<Grid<Integer>> chainFunctorDims){
-        List<IntTuple> basis = IntTuple.getStandardBasisSequence(v.length());
-        for(int i=0;i<basis.size();i++){
-            boolean is_invariant = true;
-            for(int j=0;j<chainFunctorDims.size();j++){
-                if(chainFunctorDims.get(j).get(v) != chainFunctorDims.get(j).get(v.minus(basis.get(i)))){
-                    is_invariant = false;
-                }
-            }
-            if(is_invariant) return i;
-        }
-        return -1;
-    }
-
 
     /**
      * Computes the homology functors for each dimension less than 'maxdimension'.
@@ -125,7 +105,6 @@ public class HomologyUtil {
      */
     public static List<Functor> computeHomologyFunctors(final SimplexStorageStructure simplexStorageStructure, final IntTuple size, final int maxDimension) throws MalformedFunctorException, NoSolutionException{
         log.debug("Starting to compute homology functors...");
-        List<Grid<Integer>> chainFunctorDims = computeChainFunctorDimensions(simplexStorageStructure, size, maxDimension);
 
         //The natural transformations from the chain functors to a basis change of the chain modules
         final List<Nat> naturalTransformation = new ArrayList<>();
@@ -151,17 +130,10 @@ public class HomologyUtil {
         ExecutorService exec = Executors.newFixedThreadPool(n_threads);
         List<Future> futures = new ArrayList<>();
         List<HomologyWorker> workers = new ArrayList<>();
-        List<Pair<IntTuple, IntTuple>> invariantIndices = new ArrayList<>();
         for(IntTuple v : GridIterator.getSequence(size)){
-            int invariantDim = findInvariantDimension(v, chainFunctorDims);
-            if(invariantDim == -1) {
-                HomologyWorker worker = new HomologyWorker(simplexStorageStructure, v, maxDimension);
-                workers.add(worker);
-                futures.add(exec.submit(worker));
-            }else{
-                log.debug("Invariant index: "+v);
-                invariantIndices.add(new Pair<>(v, v.minus(IntTuple.getStandardBasisElement(v.length(), invariantDim))));
-            }
+            HomologyWorker worker = new HomologyWorker(simplexStorageStructure, v, maxDimension);
+            workers.add(worker);
+            futures.add(exec.submit(worker));
         }
         exec.shutdown();
 
@@ -189,13 +161,7 @@ public class HomologyUtil {
                 naturalTransformation_inverse.get(k).setMap(worker.v, worker.naturalTransformation_inverse[k]);
             }
         }
-        for(Pair<IntTuple, IntTuple> p : invariantIndices){
-            for(int k=0;k<maxDimension;k++){
-                homologyDimension.get(k).set(p._1(), homologyDimension.get(k).get(p._2()));
-                naturalTransformation.get(k).setMap(p._1(), new BMatrix(naturalTransformation.get(k).getMap(p._2())));
-                naturalTransformation_inverse.get(k).setMap(p._1(), new BMatrix(naturalTransformation_inverse.get(k).getMap(p._2())));
-            }
-        }
+
         log.debug("Finished computing basis change.");
 
         log.debug("Starting to apply basis change...");
@@ -224,8 +190,6 @@ public class HomologyUtil {
         log.debug("Starting verification...");
         for(int k=0;k<maxDimension;k++){
             Functor.verify(homfunctors.get(k));
-            log.debug("Basis change dimension "+k+" OK.");
-            //Nat.verify(chainFunctors.get(k), homfunctors.get(k), naturalTransformation.get(k));
             log.debug("Basis change map dimension "+k+" OK.");
             Pair<Functor, Nat> gnat = homfunctors.get(k).getSubFunctor(homologyDimension.get(k));
             Functor.verify(gnat._1());
