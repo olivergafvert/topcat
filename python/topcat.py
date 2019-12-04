@@ -14,8 +14,8 @@ topcat = gateway.jvm.topcat.mains.PythonInterface
 
 def persistenceModules_dist(distanceMatrices, filtrationValues, maxdim, contour=None):
 	if contour == None:
-		return map(PersistenceModule, topcat.computePersistenceModules(distanceMatrices, filtrationValues, maxdim))
-	return map(PersistenceModule, topcat.computePersistenceModules(distanceMatrices, filtrationValues, maxdim, contour))
+		return list(map(PersistenceModule, topcat.computePersistenceModules(distanceMatrices, filtrationValues, maxdim)))
+	return list(map(PersistenceModule, topcat.computePersistenceModules(distanceMatrices, filtrationValues, maxdim, contour)))
 
 '''
 	Computes the multiparameter persistence modules from a list of points up to dimension 'maxdim'.
@@ -28,7 +28,7 @@ def persistenceModules_dist(distanceMatrices, filtrationValues, maxdim, contour=
 	Returns a list of python PersistenceModule objects.
 '''
 def persistenceModules(points, distances, filtrationValues, maxdim):
-	return map(PersistenceModule, topcat.computePersistenceModules(points, distances, filtrationValues, maxdim))
+	return list(map(PersistenceModule, topcat.computePersistenceModules(points, distances, filtrationValues, maxdim)))
 	
 
 def stableRank_dist(distanceMatrices, filtrationValues, maxdim, contour=None):
