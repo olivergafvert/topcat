@@ -26,9 +26,9 @@ Future work:
 Requirements
 ---
 
-* Maven 2
+* Maven 2/3
 * Java 7 or higher
-* Python 2.7 (optional)
+* Python 2.7/3 (optional)
 * py4j (optional)
 
 
